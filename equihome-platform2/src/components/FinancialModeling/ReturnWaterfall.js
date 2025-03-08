@@ -1,0 +1,40 @@
+import { jsxs as _jsxs, jsx as _jsx } from "react/jsx-runtime";
+import { DollarSign, TrendingUp, ArrowRight } from 'lucide-react';
+const ReturnWaterfall = ({ modelInputs }) => {
+    // Calculate yearly data for all 10 years
+    const yearlyData = Array.from({ length: 10 }, (_, i) => {
+        const year = i + 1;
+        const propertyValue = modelInputs.propertyValue * Math.pow(1 + modelInputs.growthRate / 100, year);
+        const appreciation = propertyValue - modelInputs.propertyValue;
+        const appreciationShare = appreciation * (modelInputs.loanAmount / modelInputs.propertyValue);
+        const accruedInterest = modelInputs.loanAmount * (Math.pow(1 + modelInputs.interestRate / 100, year) - 1);
+        const upfrontFee = modelInputs.loanAmount * (modelInputs.upfrontFee / 100);
+        const legalFee = 2000; // Fixed legal fee
+        const totalReturn = accruedInterest + appreciationShare + upfrontFee;
+        const irr = (Math.pow((totalReturn + modelInputs.loanAmount) / modelInputs.loanAmount, 1 / year) - 1) * 100;
+        return {
+            year,
+            underwriteProfile: {
+                upfrontFee,
+                legalFee,
+                totalDebt: modelInputs.loanAmount,
+                moniesReleased: modelInputs.loanAmount - upfrontFee - legalFee,
+                startingValue: modelInputs.propertyValue,
+                growthRate: modelInputs.growthRate,
+                projectedValue: propertyValue,
+                appreciation: appreciation
+            },
+            settlementProfile: {
+                projectedValue: propertyValue,
+                capitalRepayment: modelInputs.loanAmount,
+                interest: accruedInterest,
+                equihomeFee: appreciationShare,
+                netProceeds: propertyValue - modelInputs.loanAmount - accruedInterest - appreciationShare,
+                proceedsToEquihome: accruedInterest + appreciationShare + upfrontFee,
+                irr: irr
+            }
+        };
+    });
+    return (_jsx("div", { className: "space-y-8", children: yearlyData.map((data) => (_jsxs("div", { className: "bg-white rounded-lg shadow-sm overflow-hidden", children: [_jsx("div", { className: "bg-gradient-to-r from-blue-50 to-indigo-50 p-6 border-b border-blue-100", children: _jsxs("div", { className: "flex items-center justify-between", children: [_jsxs("h3", { className: "text-xl font-bold text-gray-900", children: ["Year ", data.year, " Transaction Profile"] }), _jsxs("div", { className: "flex items-center space-x-2", children: [_jsx("span", { className: "text-sm text-gray-600", children: "IRR:" }), _jsxs("span", { className: "text-lg font-bold text-blue-600", children: [data.settlementProfile.irr.toFixed(2), "%"] })] })] }) }), _jsxs("div", { className: "grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-200", children: [_jsxs("div", { className: "p-6", children: [_jsxs("div", { className: "flex items-center mb-6", children: [_jsx(DollarSign, { className: "h-5 w-5 text-blue-600 mr-2" }), _jsx("h4", { className: "text-lg font-semibold text-gray-900", children: "Underwrite Profile" })] }), _jsxs("div", { className: "space-y-4", children: [_jsx("div", { className: "bg-blue-50 p-4 rounded-lg", children: _jsxs("div", { className: "grid grid-cols-2 gap-4", children: [_jsxs("div", { children: [_jsx("div", { className: "text-sm text-gray-600", children: "Upfront Fee (3%)" }), _jsxs("div", { className: "text-lg font-semibold", children: ["$", data.underwriteProfile.upfrontFee.toLocaleString()] })] }), _jsxs("div", { children: [_jsx("div", { className: "text-sm text-gray-600", children: "Legal Fee" }), _jsxs("div", { className: "text-lg font-semibold", children: ["$", data.underwriteProfile.legalFee.toLocaleString()] })] })] }) }), _jsx("div", { className: "bg-blue-50 p-4 rounded-lg", children: _jsxs("div", { className: "grid grid-cols-2 gap-4", children: [_jsxs("div", { children: [_jsx("div", { className: "text-sm text-gray-600", children: "Total Debt" }), _jsxs("div", { className: "text-lg font-semibold", children: ["$", data.underwriteProfile.totalDebt.toLocaleString()] })] }), _jsxs("div", { children: [_jsx("div", { className: "text-sm text-gray-600", children: "Monies Released" }), _jsxs("div", { className: "text-lg font-semibold", children: ["$", data.underwriteProfile.moniesReleased.toLocaleString()] })] })] }) }), _jsx("div", { className: "bg-blue-50 p-4 rounded-lg", children: _jsxs("div", { className: "grid grid-cols-2 gap-4", children: [_jsxs("div", { children: [_jsx("div", { className: "text-sm text-gray-600", children: "Starting Value" }), _jsxs("div", { className: "text-lg font-semibold", children: ["$", data.underwriteProfile.startingValue.toLocaleString()] })] }), _jsxs("div", { children: [_jsx("div", { className: "text-sm text-gray-600", children: "Growth Rate" }), _jsxs("div", { className: "text-lg font-semibold", children: [data.underwriteProfile.growthRate, "%"] })] })] }) }), _jsx("div", { className: "bg-blue-50 p-4 rounded-lg", children: _jsxs("div", { className: "grid grid-cols-2 gap-4", children: [_jsxs("div", { children: [_jsx("div", { className: "text-sm text-gray-600", children: "Projected Home Value" }), _jsxs("div", { className: "text-lg font-semibold", children: ["$", data.underwriteProfile.projectedValue.toLocaleString()] })] }), _jsxs("div", { children: [_jsx("div", { className: "text-sm text-gray-600", children: "Home Value Appreciation" }), _jsxs("div", { className: "text-lg font-semibold", children: ["$", data.underwriteProfile.appreciation.toLocaleString()] })] })] }) })] })] }), _jsxs("div", { className: "p-6", children: [_jsxs("div", { className: "flex items-center mb-6", children: [_jsx(TrendingUp, { className: "h-5 w-5 text-green-600 mr-2" }), _jsx("h4", { className: "text-lg font-semibold text-gray-900", children: "Settlement Profile" })] }), _jsxs("div", { className: "space-y-4", children: [_jsxs("div", { className: "bg-green-50 p-4 rounded-lg", children: [_jsx("div", { className: "text-sm text-gray-600", children: "Projected Home Value" }), _jsxs("div", { className: "text-lg font-semibold", children: ["$", data.settlementProfile.projectedValue.toLocaleString()] })] }), _jsx("div", { className: "bg-green-50 p-4 rounded-lg", children: _jsxs("div", { className: "grid grid-cols-2 gap-4", children: [_jsxs("div", { children: [_jsx("div", { className: "text-sm text-gray-600", children: "Capital Repayment" }), _jsxs("div", { className: "text-lg font-semibold", children: ["$", data.settlementProfile.capitalRepayment.toLocaleString()] })] }), _jsxs("div", { children: [_jsx("div", { className: "text-sm text-gray-600", children: "Interest" }), _jsxs("div", { className: "text-lg font-semibold", children: ["$", Math.round(data.settlementProfile.interest).toLocaleString()] })] })] }) }), _jsx("div", { className: "bg-green-50 p-4 rounded-lg", children: _jsxs("div", { className: "grid grid-cols-2 gap-4", children: [_jsxs("div", { children: [_jsx("div", { className: "text-sm text-gray-600", children: "Equihome Fee" }), _jsxs("div", { className: "text-lg font-semibold", children: ["$", Math.round(data.settlementProfile.equihomeFee).toLocaleString()] })] }), _jsxs("div", { children: [_jsx("div", { className: "text-sm text-gray-600", children: "Net Proceeds to Homeowner" }), _jsxs("div", { className: "text-lg font-semibold", children: ["$", Math.round(data.settlementProfile.netProceeds).toLocaleString()] })] })] }) }), _jsx("div", { className: "bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg border border-green-100", children: _jsxs("div", { className: "flex items-center justify-between", children: [_jsxs("div", { children: [_jsx("div", { className: "text-sm font-medium text-gray-900", children: "Proceeds to Equihome" }), _jsxs("div", { className: "text-xl font-bold text-green-600", children: ["$", Math.round(data.settlementProfile.proceedsToEquihome).toLocaleString()] })] }), _jsx(ArrowRight, { className: "h-5 w-5 text-green-500" })] }) })] })] })] })] }, data.year))) }));
+};
+export default ReturnWaterfall;
