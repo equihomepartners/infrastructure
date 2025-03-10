@@ -9,6 +9,11 @@ interface ModelEvolution {
   dataPoints: number;
 }
 
+interface MLModelEvolutionProps {
+  analysis: any | null;
+  isLoading?: boolean;
+}
+
 const modelHistory: ModelEvolution[] = [
   {
     version: '3.2.1',
@@ -45,11 +50,11 @@ const modelHistory: ModelEvolution[] = [
   }
 ];
 
-const MLModelEvolution: React.FC = () => {
+const MLModelEvolution: React.FC<MLModelEvolutionProps> = ({ analysis, isLoading = false }) => {
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
+    <div className="bg-white border border-gray-200 p-6">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">ML Model Evolution</h3>
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold">ML Model Evolution</h3>
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
             <Brain className="h-4 w-4 text-blue-600" />

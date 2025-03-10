@@ -10,6 +10,11 @@ interface RiskCorrelation {
   confidence: number;
 }
 
+interface RiskCorrelationMatrixProps {
+  analysis: any | null;
+  isLoading?: boolean;
+}
+
 const correlationData: RiskCorrelation[] = [
   {
     factor1: 'Location Quality',
@@ -41,19 +46,10 @@ const correlationData: RiskCorrelation[] = [
   }
 ];
 
-const RiskCorrelationMatrix: React.FC = () => {
+const RiskCorrelationMatrix: React.FC<RiskCorrelationMatrixProps> = ({ analysis, isLoading = false }) => {
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-2">
-          <Brain className="h-5 w-5 text-indigo-600" />
-          <h3 className="text-lg font-semibold">Risk Factor Correlations</h3>
-        </div>
-        <div className="text-sm text-gray-600">
-          Updated hourly
-        </div>
-      </div>
-
+    <div className="bg-white border border-gray-200 p-6">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">Risk Correlation Matrix</h3>
       <div className="space-y-4">
         {correlationData.map((correlation, index) => (
           <div key={index} className="bg-gray-50 rounded-lg p-4">

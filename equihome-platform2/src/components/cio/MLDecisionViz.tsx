@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bar, Line } from 'react-chartjs-2';
+import { Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -25,38 +25,41 @@ ChartJS.register(
   PointElement
 );
 
-interface Props {
-  analysis: {
-    metrics: {
-      growth: number;
-      risk: number;
-      infrastructure: number;
-      transport: number;
-      schools: number;
-    };
-  };
+interface MLDecisionVizProps {
+  analysis: any | null;
+  isLoading?: boolean;
 }
 
-const MLDecisionViz: React.FC<Props> = ({ analysis }) => {
+const MLDecisionViz: React.FC<MLDecisionVizProps> = ({ analysis, isLoading = false }) => {
+  const defaultMetrics = {
+    growth: 0,
+    risk: 0,
+    infrastructure: 0,
+    transport: 0,
+    schools: 0
+  };
+
+  const metrics = analysis?.metrics || defaultMetrics;
+
   const chartData = {
     labels: ['Growth', 'Risk', 'Infrastructure', 'Transport', 'Schools'],
     datasets: [
       {
         label: 'Metrics',
         data: [
-          analysis.metrics.growth,
-          analysis.metrics.risk,
-          analysis.metrics.infrastructure,
-          analysis.metrics.transport,
-          analysis.metrics.schools
+          metrics.growth,
+          metrics.risk,
+          metrics.infrastructure,
+          metrics.transport,
+          metrics.schools
         ],
-        backgroundColor: [
+        backgroundColor: analysis ? [
           'rgba(34, 197, 94, 0.6)',  // green - growth
           'rgba(239, 68, 68, 0.6)',  // red - risk
           'rgba(59, 130, 246, 0.6)', // blue - infrastructure
           'rgba(249, 115, 22, 0.6)', // orange - transport
           'rgba(168, 85, 247, 0.6)'  // purple - schools
-        ],
+        ] : Array(5).fill('rgba(148, 163, 184, 0.2)'), // gray for no data
         borderWidth: 1,
         borderRadius: 6
       }
@@ -112,6 +115,15 @@ const MLDecisionViz: React.FC<Props> = ({ analysis }) => {
 
   return (
     <div className="space-y-6">
+      <div className="bg-white border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">ML Decision Visualization</h3>
+        {!analysis && (
+          <div className="text-sm text-gray-500 mb-4">
+            Select a suburb to view ML decision metrics
+          </div>
+        )}
+      </div>
+
       {/* Main Chart */}
       <div className="bg-white rounded-lg p-4 border">
         <div className="h-64">
@@ -128,12 +140,14 @@ const MLDecisionViz: React.FC<Props> = ({ analysis }) => {
             <div>
               <div className="flex justify-between text-sm mb-1">
                 <span className="text-gray-600">Market Risk</span>
-                <span className="font-medium">{formatNumber.percentage(analysis.metrics.risk)}</span>
+                <span className={`font-medium ${analysis ? 'text-gray-900' : 'text-gray-400'}`}>
+                  {formatNumber.percentage(metrics.risk)}
+                </span>
               </div>
               <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                 <div 
-                  className="h-full bg-red-500 rounded-full transition-all duration-500"
-                  style={{ width: `${analysis.metrics.risk}%` }}
+                  className={`h-full rounded-full transition-all duration-500 ${analysis ? 'bg-red-500' : 'bg-gray-200'}`}
+                  style={{ width: `${metrics.risk}%` }}
                 />
               </div>
             </div>
@@ -141,12 +155,14 @@ const MLDecisionViz: React.FC<Props> = ({ analysis }) => {
             <div>
               <div className="flex justify-between text-sm mb-1">
                 <span className="text-gray-600">Growth Potential</span>
-                <span className="font-medium text-green-600">{formatNumber.percentage(analysis.metrics.growth)}</span>
+                <span className={`font-medium ${analysis ? 'text-green-600' : 'text-gray-400'}`}>
+                  {formatNumber.percentage(metrics.growth)}
+                </span>
               </div>
               <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                 <div 
-                  className="h-full bg-green-500 rounded-full transition-all duration-500"
-                  style={{ width: `${analysis.metrics.growth}%` }}
+                  className={`h-full rounded-full transition-all duration-500 ${analysis ? 'bg-green-500' : 'bg-gray-200'}`}
+                  style={{ width: `${metrics.growth}%` }}
                 />
               </div>
             </div>
@@ -154,12 +170,14 @@ const MLDecisionViz: React.FC<Props> = ({ analysis }) => {
             <div>
               <div className="flex justify-between text-sm mb-1">
                 <span className="text-gray-600">Infrastructure Score</span>
-                <span className="font-medium text-blue-600">{formatNumber.percentage(analysis.metrics.infrastructure)}</span>
+                <span className={`font-medium ${analysis ? 'text-blue-600' : 'text-gray-400'}`}>
+                  {formatNumber.percentage(metrics.infrastructure)}
+                </span>
               </div>
               <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                 <div 
-                  className="h-full bg-blue-500 rounded-full transition-all duration-500"
-                  style={{ width: `${analysis.metrics.infrastructure}%` }}
+                  className={`h-full rounded-full transition-all duration-500 ${analysis ? 'bg-blue-500' : 'bg-gray-200'}`}
+                  style={{ width: `${metrics.infrastructure}%` }}
                 />
               </div>
             </div>
@@ -173,12 +191,14 @@ const MLDecisionViz: React.FC<Props> = ({ analysis }) => {
             <div>
               <div className="flex justify-between text-sm mb-1">
                 <span className="text-gray-600">Transport</span>
-                <span className="font-medium text-orange-600">{formatNumber.percentage(analysis.metrics.transport)}</span>
+                <span className={`font-medium ${analysis ? 'text-orange-600' : 'text-gray-400'}`}>
+                  {formatNumber.percentage(metrics.transport)}
+                </span>
               </div>
               <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                 <div 
-                  className="h-full bg-orange-500 rounded-full transition-all duration-500"
-                  style={{ width: `${analysis.metrics.transport}%` }}
+                  className={`h-full rounded-full transition-all duration-500 ${analysis ? 'bg-orange-500' : 'bg-gray-200'}`}
+                  style={{ width: `${metrics.transport}%` }}
                 />
               </div>
             </div>
@@ -186,12 +206,14 @@ const MLDecisionViz: React.FC<Props> = ({ analysis }) => {
             <div>
               <div className="flex justify-between text-sm mb-1">
                 <span className="text-gray-600">Schools</span>
-                <span className="font-medium text-purple-600">{formatNumber.percentage(analysis.metrics.schools)}</span>
+                <span className={`font-medium ${analysis ? 'text-purple-600' : 'text-gray-400'}`}>
+                  {formatNumber.percentage(metrics.schools)}
+                </span>
               </div>
               <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                 <div 
-                  className="h-full bg-purple-500 rounded-full transition-all duration-500"
-                  style={{ width: `${analysis.metrics.schools}%` }}
+                  className={`h-full rounded-full transition-all duration-500 ${analysis ? 'bg-purple-500' : 'bg-gray-200'}`}
+                  style={{ width: `${metrics.schools}%` }}
                 />
               </div>
             </div>
@@ -201,30 +223,36 @@ const MLDecisionViz: React.FC<Props> = ({ analysis }) => {
 
       {/* ML Insights */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-green-50 rounded-lg p-4">
-          <h5 className="font-medium text-green-800 mb-2">Growth Drivers</h5>
-          <p className="text-sm text-green-700">
-            {analysis.metrics.growth > 75 ? 'Strong market momentum' :
-             analysis.metrics.growth > 50 ? 'Steady appreciation' :
-             'Stable growth potential'}
+        <div className={`rounded-lg p-4 ${analysis ? 'bg-green-50' : 'bg-gray-50'}`}>
+          <h5 className={`font-medium mb-2 ${analysis ? 'text-green-800' : 'text-gray-600'}`}>Growth Drivers</h5>
+          <p className={`text-sm ${analysis ? 'text-green-700' : 'text-gray-500'}`}>
+            {analysis ? (
+              metrics.growth > 75 ? 'Strong market momentum' :
+              metrics.growth > 50 ? 'Steady appreciation' :
+              'Stable growth potential'
+            ) : 'Growth analysis pending'}
           </p>
         </div>
 
-        <div className="bg-blue-50 rounded-lg p-4">
-          <h5 className="font-medium text-blue-800 mb-2">Infrastructure Impact</h5>
-          <p className="text-sm text-blue-700">
-            {analysis.metrics.infrastructure > 75 ? 'Excellent amenities' :
-             analysis.metrics.infrastructure > 50 ? 'Good development' :
-             'Basic infrastructure'}
+        <div className={`rounded-lg p-4 ${analysis ? 'bg-blue-50' : 'bg-gray-50'}`}>
+          <h5 className={`font-medium mb-2 ${analysis ? 'text-blue-800' : 'text-gray-600'}`}>Infrastructure Impact</h5>
+          <p className={`text-sm ${analysis ? 'text-blue-700' : 'text-gray-500'}`}>
+            {analysis ? (
+              metrics.infrastructure > 75 ? 'Excellent amenities' :
+              metrics.infrastructure > 50 ? 'Good development' :
+              'Basic infrastructure'
+            ) : 'Infrastructure analysis pending'}
           </p>
         </div>
 
-        <div className="bg-purple-50 rounded-lg p-4">
-          <h5 className="font-medium text-purple-800 mb-2">Area Development</h5>
-          <p className="text-sm text-purple-700">
-            {analysis.metrics.schools > 75 ? 'Premium location' :
-             analysis.metrics.schools > 50 ? 'Developing area' :
-             'Growth corridor'}
+        <div className={`rounded-lg p-4 ${analysis ? 'bg-purple-50' : 'bg-gray-50'}`}>
+          <h5 className={`font-medium mb-2 ${analysis ? 'text-purple-800' : 'text-gray-600'}`}>Area Development</h5>
+          <p className={`text-sm ${analysis ? 'text-purple-700' : 'text-gray-500'}`}>
+            {analysis ? (
+              metrics.schools > 75 ? 'Premium location' :
+              metrics.schools > 50 ? 'Developing area' :
+              'Growth corridor'
+            ) : 'Area analysis pending'}
           </p>
         </div>
       </div>

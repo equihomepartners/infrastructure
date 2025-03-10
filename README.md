@@ -1,502 +1,349 @@
-# EquiHome Infrastructure Overview
+# Equihome Infrastructure
 
-## 1. Technical Infrastructure (Tech Stack)
+## Project Overview
+Real-time property analytics and portfolio management platform with ML-driven insights.
 
-### Core Infrastructure
-- **Cloud Platform**: AWS (Amazon Web Services)
-- **Infrastructure as Code**: Terraform
-- **CI/CD**: GitHub Actions
-- **Containerization**: Docker
-- **Container Orchestration**: Kubernetes (EKS)
-- **Monitoring**: AWS CloudWatch, Prometheus & Grafana
-- **Logging**: ELK Stack (Elasticsearch, Logstash, Kibana)
+## Architecture
 
-### Development Stack
-- **Frontend**: React.js, TypeScript, Vite, TailwindCSS
-- **Backend**: Node.js, Express.js
-- **Database**: PostgreSQL (Primary), Redis (Caching)
-- **API**: RESTful & GraphQL
-- **Authentication**: JWT, OAuth2.0
-- **Testing**: Jest, React Testing Library, Cypress
+### Current Implementation (Test Mode)
+```mermaid
+graph LR
+    A[Property Feed Service] -->|Test Data| B[Redis]
+    B -->|WebSocket| C[Frontend]
+```
 
-### Security Infrastructure
-- **SSL/TLS**: AWS Certificate Manager
-- **WAF**: AWS WAF
-- **Identity Management**: AWS IAM
-- **Secrets Management**: AWS Secrets Manager
-- **Network Security**: VPC, Security Groups, NACLs
+- ✅ Property Feed Service (5-min updates)
+- ✅ Redis pub/sub messaging
+- ✅ Frontend real-time display
+- ✅ WebSocket communication
 
-## 2. EquiHome Platform (Current State)
+### Target Architecture
+```mermaid
+graph LR
+    A[Property Feed Service] -->|Raw Data| B[Redis]
+    B -->|Property Data| C[ML Service]
+    C -->|Processed Data| D[CIO API]
+    D -->|Analysis & Decisions| E[Redis]
+    E -->|Updates| F[Frontend]
+    E -->|Decisions| G[Underwriting System]
+```
 
-### Business Model Overview
-The EquiHome platform operates as a sophisticated real estate investment and management system with multiple revenue streams:
+## Components Status
 
-1. **Fund Management**
-   - Real Estate Investment Fund
-   - Investor portal and management
-   - Returns tracking and distribution
-   - Capital raise management
-   - Investor reporting and analytics
+### 1. Data Infrastructure
+#### Implemented ✅
+- Property Feed Service
+  - Test data generation
+  - Redis pub/sub integration
+  - WebSocket server
+  - Real-time updates
 
-2. **Property Portfolio**
-   - Multi-family residential focus
-   - Value-add strategy implementation
-   - Property performance tracking
-   - Renovation and improvement management
-   - NOI optimization tools
+#### To Be Implemented 🚧
+- Data Lake
+  - [ ] AWS S3 for raw data
+  - [ ] PostgreSQL/MongoDB for structured data
+  - [ ] Data versioning system
+  - [ ] Historical data management
 
-3. **Revenue Streams**
-   - Management fees (2% AUM)
-   - Performance fees (20% over hurdle)
-   - Property management fees
-   - Acquisition fees
-   - Construction management fees
+- ETL Pipeline
+  - [ ] Data validation
+  - [ ] Cleaning procedures
+  - [ ] Feature extraction
+  - [ ] Quality checks
 
-### CIO Dashboard System
+### 2. ML/AI Layer 🚧 (HIGH PRIORITY)
+#### Implementation Options Analysis
 
-#### 1. Market Intelligence Hub (Traffic Light System)
-1. **Real-Time Market Analysis**
-   - Green: Optimal market conditions
-     * Strong rent growth (>5% YoY)
-     * Low vacancy rates (<3%)
-     * Positive employment trends (>2% growth)
-     * Favorable demographic shifts (>1.5% population growth)
-   - Yellow: Cautionary market conditions
-     * Slowing rent growth (2-5% YoY)
-     * Rising vacancy trends (3-5%)
-     * Mixed economic indicators
-     * Demographic changes need monitoring
-   - Red: High-risk market conditions
-     * Negative rent growth (<2% YoY)
-     * High vacancy rates (>5%)
-     * Declining employment
-     * Unfavorable demographic trends
+1. Custom LLM Development (Complex, Long-term)
+   - Requirements:
+     * Large dataset of real estate transactions
+     * Significant compute resources
+     * 3-6 months development time
+     * ML engineering team
+   - Components:
+     * Training pipeline
+     * Model architecture
+     * Fine-tuning system
+     * Inference API
+   - Challenges:
+     * Data collection & cleaning
+     * Model training costs
+     * Performance optimization
+     * Ongoing maintenance
 
-2. **AI/ML Market Analysis Components**
-   - Market Cycle Position Detection
-     * Historical trend analysis (10-year data)
-     * Current market momentum indicators
-     * Leading indicator tracking (12-month forecast)
-     * Cycle position prediction (24-month outlook)
-   - Risk Factor Analysis
-     * Economic risk scoring (0-100 scale)
-     * Demographic risk assessment
-     * Supply/demand imbalance detection
-     * Capital market conditions analysis
+2. External API Integration (Recommended First Phase)
+   - Options:
+     * GPT-4 with fine-tuning
+     * Grok API (when available)
+     * Specialized Real Estate APIs
+   - Benefits:
+     * Faster implementation
+     * Lower initial cost
+     * Proven reliability
+     * Regular updates
+   - Integration Points:
+     * Property analysis
+     * Market trends
+     * Risk assessment
+     * Investment recommendations
 
-#### 2. Automated Underwriting Integration
-1. **Risk Assessment Parameters**
-   - Traffic Light-Based Criteria
-     * Green: Automated approval for top 1% applications
-     * Yellow: Enhanced due diligence required
-     * Red: Manual review mandatory
-   - Dynamic Thresholds
-     * LTV limits (adjusted by market condition)
-     * DSCR requirements (market-adjusted)
-     * Credit score minimums
-     * Reserve requirements
+3. Hybrid Approach (Long-term Goal)
+   - Phase 1: External API
+     * Quick deployment
+     * Data collection starts
+     * System validation
+   - Phase 2: Custom Models
+     * Specific use cases
+     * Proprietary features
+     * Unique insights
+   - Phase 3: Full LLM
+     * Based on collected data
+     * Specialized training
+     * Custom architecture
 
-2. **Portfolio Alignment**
-   - Concentration Limits
-     * Geographic exposure caps (max 18% per suburb)
-     * Property type diversification
-     * Risk band distribution
-   - Return Requirements
-     * Risk-adjusted IRR thresholds
-     * Cash-on-cash minimums
-     * Exit assumptions
+#### ML Service Architecture
+```mermaid
+graph TD
+    A[Data Input] -->|Preprocessing| B[Feature Engineering]
+    B -->|Analysis| C[ML Models]
+    C -->|Results| D[Post-processing]
+    D -->|Decisions| E[CIO API]
+```
 
-#### 3. Real-Time Decision Engine
-1. **Automated Approvals**
-   - Instant Decision Criteria
-     * Credit score >750
-     * LTV <65%
-     * DSCR >1.5x
-     * Green market zone
-   - Term Sheet Generation
-     * Market-adjusted pricing
-     * Risk-based terms
-     * Automated document generation
+### 3. CIO API Layer 🚧
+- Traffic Light System
+  - Zone classification
+  - Risk assessment
+  - Market analysis
+- Decision Engine
+  - Investment rules
+  - Risk thresholds
+  - Approval criteria
 
-2. **Manual Review Queue**
-   - Priority Scoring
-     * Risk assessment score (0-100)
-     * Market condition alignment
-     * Portfolio fit score
-     * Time in queue
+### 4. Underwriting Integration
+- Decision consumption
+- Automated processing
+- Risk evaluation
+- Approval workflow
 
-#### 4. Portfolio Analytics Integration
-1. **Performance Tracking**
-   - Loan Level Metrics
-     * Payment performance
-     * Property condition
-     * Market position
-     * Risk score evolution
-   - Portfolio Level Analysis
-     * Geographic distribution
-     * Risk concentration
-     * Return attribution
-     * Market exposure
+## Development Roadmap
 
-2. **Machine Learning Feedback**
-   - Performance Data Collection
-     * Monthly performance metrics
-     * Market condition correlation
-     * Risk score accuracy
-     * Decision outcome tracking
-   - Model Refinement
-     * Weekly retraining schedule
-     * Performance-based adjustments
-     * Risk factor weighting updates
-     * Market signal calibration
+### Phase 1: ML Integration (Current Focus)
+1. External API Setup
+   - Select provider (GPT-4 recommended)
+   - Integration architecture
+   - API endpoint design
+   - Testing framework
 
-#### 5. Reporting & Communication Hub
-1. **Real-Time Dashboards**
-   - Executive View
-     * Portfolio health score
-     * Risk distribution
-     * Market exposure map
-     * Performance metrics
-   - Operational View
-     * Pipeline status
-     * Approval rates
-     * Processing times
-     * Exception tracking
+2. Initial ML Features
+   - Property analysis
+   - Market assessment
+   - Basic risk scoring
+   - Zone classification
 
-2. **Communication Channels**
-   - Automated Alerts
-     * Risk threshold breaches
-     * Market condition changes
-     * Portfolio concentration warnings
-     * Performance anomalies
-   - Stakeholder Updates
-     * Daily performance summaries
-     * Weekly portfolio updates
-     * Monthly investor reports
-     * Quarterly strategy reviews
-
-### Underwriting System Architecture
-
-#### 1. Core Components
-1. **Application Ingestion**
-   - REST API Endpoints
-     * /api/applications (POST)
-     * /api/documents (POST)
-     * /api/status (GET)
-   - Document Processing
-     * OCR extraction
-     * Data validation
-     * Secure storage
-
-2. **Risk Assessment Engine**
-   - ML Models
-     * Credit risk scoring
-     * Property valuation
-     * Market risk assessment
-     * Fraud detection
-   - Real-Time Processing
-     * SageMaker endpoints
-     * Load balancing
-     * Error handling
-
-3. **Decision Automation**
-   - Business Rules Engine
-     * Traffic light integration
-     * Portfolio rules
-     * Compliance checks
-   - Automated Documentation
-     * Term sheet generation
-     * Approval letters
-     * Decline notifications
-
-#### 2. Integration Points
-1. **External Systems**
-   - Credit Bureaus
-   - Property Databases
-   - Market Data Providers
-   - Banking Systems
-
-2. **Internal Systems**
-   - CIO Dashboard
-   - Portfolio Management
-   - Accounting System
-   - Document Management
-
-#### 3. Technical Infrastructure
-1. **AWS Services**
-   - EKS Clusters
-   - SageMaker
-   - S3 Storage
-   - RDS (PostgreSQL)
-   - ElastiCache (Redis)
-
-2. **Monitoring & Logging**
-   - ELK Stack
-   - CloudWatch
-   - Prometheus
-   - Grafana
-
-### Portfolio Management System
-
-1. **Asset Management**
-   - Property performance tracking
-   - Expense management
-   - Revenue optimization
-   - Maintenance scheduling
-   - Vendor management
-   - Lease administration
-
-2. **Financial Management**
-   - Real-time financial reporting
-   - Budget vs. actual analysis
-   - Cash flow management
-   - Debt service tracking
-   - Tax management
-   - Distribution calculations
-
-3. **Renovation Management**
-   - Project tracking
-   - Budget management
-   - Contractor coordination
-   - Timeline monitoring
-   - Quality control
-   - ROI analysis
-
-### Instant Underwriting System
-
-1. **CIO-Driven Parameters**
-   - Risk tolerance settings
-   - Return requirements
-   - Investment criteria
-   - Market preferences
-   - Property condition standards
-   - Tenant profile requirements
-
-2. **Automated Analysis**
-   - Market rent analysis
-   - Expense ratio validation
-   - NOI calculation
-   - Cap rate comparison
-   - Risk score generation
-   - Return projection
-
-3. **Risk Assessment**
-   - Property condition evaluation
-   - Market risk analysis
-   - Tenant quality assessment
-   - Environmental risk check
-   - Regulatory compliance
-   - Financial risk scoring
-
-4. **Deal Flow Management**
-   - Pipeline tracking
-   - Deal scoring
-   - Approval workflow
-   - Due diligence checklist
-   - Document management
-   - Closing coordination
-
-### Data Integration Hub
-
-1. **External Data Sources**
-   - MLS listings
-   - Property records
-   - Market reports
-   - Economic indicators
-   - Census data
-   - Crime statistics
-
-2. **Internal Data Processing**
-   - Data normalization
-   - Quality validation
-   - Historical analysis
-   - Trend identification
-   - Anomaly detection
-   - Predictive modeling
-
-3. **Machine Learning Models**
-   - Rent prediction
-   - Expense forecasting
+### Phase 2: CIO API Development
+1. Traffic Light System
+   - Classification engine
    - Risk assessment
-   - Market trend analysis
-   - Tenant behavior modeling
-   - Property appreciation projection
-
-### Reporting & Analytics
-
-1. **Investor Reporting**
-   - Performance metrics
-   - Distribution statements
-   - Capital account tracking
-   - Investment summaries
-   - Tax documentation
-   - Portfolio updates
-
-2. **Operational Reporting**
-   - Property performance
-   - Maintenance metrics
-   - Leasing activity
-   - Construction progress
-   - Budget tracking
-   - Staff productivity
-
-3. **Executive Dashboards**
-   - Portfolio overview
-   - Risk metrics
-   - Financial performance
-   - Market positioning
-   - Growth trajectory
-   - Strategic objectives
-
-### Compliance & Risk Management
-
-1. **Regulatory Compliance**
-   - SEC requirements
-   - Investment advisor regulations
-   - Property law compliance
-   - Tax compliance
-   - Environmental regulations
-   - Fair housing laws
-
-2. **Risk Monitoring**
-   - Portfolio risk metrics
-   - Market risk assessment
-   - Operational risk tracking
-   - Compliance risk monitoring
-   - Financial risk analysis
-   - Environmental risk assessment
-
-## 3. EquiHome Underwriting Project (Future State)
-
-### Project Overview
-The EquiHome Underwriting module is designed to revolutionize the property underwriting process through automation and intelligent risk assessment.
-
-### Core Objectives
-1. **Automated Risk Assessment**
-   - Property risk scoring
-   - Market risk evaluation
-   - Financial risk analysis
-   - Environmental risk assessment
-
-2. **Intelligent Underwriting**
-   - Machine learning-based decision support
-   - Automated document analysis
-   - Risk-based pricing models
-   - Compliance checking
-
-3. **Process Automation**
-   - Workflow automation
-   - Document processing
-   - Communication automation
-   - Decision tracking
-
-### Technical Requirements
-
-#### Frontend Requirements
-1. **User Interface**
-   - Modern, intuitive design
-   - Responsive layouts
    - Real-time updates
-   - Interactive data visualization
-   - Accessible components
 
-2. **Features**
-   - Dynamic form generation
-   - Document upload and preview
-   - Real-time validation
-   - Progress tracking
-   - Risk score visualization
-   - Automated recommendations
+2. Decision Engine
+   - Rule processing
+   - Risk evaluation
+   - Approval logic
 
-#### Backend Requirements
-1. **API Architecture**
-   - RESTful endpoints
-   - Real-time WebSocket connections
-   - GraphQL integration
-   - Microservices architecture
+### Phase 3: Underwriting Integration
+1. System Connection
+   - API endpoints
+   - Data flow
+   - Decision processing
 
-2. **Data Processing**
-   - Document parsing
-   - Risk calculation engines
-   - Machine learning models
-   - Real-time analytics
-
-### Integration Points
-1. **External Systems**
-   - Credit bureaus
-   - Property databases
-   - Market data providers
-   - Insurance databases
-   - Regulatory compliance systems
-
-2. **Internal Systems**
-   - Property management system
-   - Document management system
-   - User management system
+2. Automation
+   - Workflow integration
+   - Status tracking
    - Reporting system
 
-### Security Requirements
-1. **Data Protection**
-   - End-to-end encryption
-   - Data masking
-   - Access control
-   - Audit logging
+## Setup Instructions
+See [setupreadme.md](equihome-platform2/setupreadme.md) for detailed setup instructions.
 
-2. **Compliance**
-   - GDPR compliance
-   - SOC 2 compliance
-   - Industry-specific regulations
+## Development Guidelines
 
-### Performance Requirements
-1. **Response Times**
-   - API response < 200ms
-   - Page load < 2s
-   - Real-time updates < 100ms
+### Code Organization
+```
+equihome-infrastructure/
+├── data-infrastructure/    # Data lake and ETL pipelines
+├── ml-services/           # ML models and APIs
+├── portfolio-analytics/    # Analytics and scoring
+└── equihome-platform2/    # Frontend and property feed
+```
 
-2. **Scalability**
-   - Support for 10,000+ concurrent users
-   - Handle 1M+ daily transactions
-   - 99.99% uptime
+### Best Practices
+1. Data Management
+   - Version all data changes
+   - Maintain data lineage
+   - Regular quality checks
 
-## 4. Development Roadmap
+2. ML Development
+   - Track model versions
+   - Document training data
+   - Monitor performance
 
-### Phase 1: Foundation
-- Setup development environment
-- Create base architecture
-- Implement core UI components
-- Establish API endpoints
+3. Code Quality
+   - Write tests
+   - Document APIs
+   - Regular code reviews
 
-### Phase 2: Core Features
-- Risk assessment engine
-- Document processing
-- Basic workflow automation
-- Initial ML models
+## Environment Setup
+See [environment setup](equihome-platform2/setupreadme.md#environment-variables) for required configurations.
 
-### Phase 3: Advanced Features
-- Advanced analytics
-- Real-time monitoring
-- Integration with external systems
-- Enhanced ML capabilities
+## Contributing
+1. Branch naming: feature/[feature-name]
+2. Commit messages: Clear and descriptive
+3. PR reviews required
+4. Update documentation
 
-### Phase 4: Optimization
-- Performance tuning
-- Security hardening
-- UI/UX refinement
-- Documentation
+## Next Steps
+1. [x] Property Feed Service setup
+2. [x] Redis implementation
+3. [x] Frontend display
+4. [ ] ML Service implementation (CURRENT PRIORITY)
+   - External API integration
+   - Basic analysis pipeline
+   - Decision engine foundation
+5. [ ] CIO API development
+6. [ ] Underwriting system integration
 
-## 5. Success Metrics
-- Reduction in underwriting time by 80%
-- Increase in accuracy by 50%
-- Reduction in manual intervention by 90%
-- Customer satisfaction score > 90%
-- ROI improvement > 200%
+# Equihome CIO Dashboard
 
-## 6. Technical Considerations
-- Scalable architecture
-- Fault tolerance
-- Data consistency
-- Real-time processing
-- Security compliance
-- Performance optimization
-- Monitoring and alerting
-- Disaster recovery 
+## Infrastructure Overview
+
+### 1. Data Sources
+- Property Data APIs (Domain/REA)
+- NSW Digital Twin API (Suburb Boundaries)
+- ABS Statistical Area Data
+- Economic Indicators API
+- Infrastructure Development Data
+- Census and Demographic Data
+
+### 2. ML Infrastructure
+- Model Training Pipeline
+  - Data preprocessing
+  - Feature engineering
+  - Model training and validation
+  - Model versioning and storage
+- Inference Pipeline
+  - Real-time data processing
+  - Batch predictions
+  - Confidence scoring
+  - Zone classification
+
+### 3. Map Visualization
+- Base Layer: OpenStreetMap
+- Boundary Layer: NSW Digital Twin API
+- Dynamic Zoning Layer
+  - Real-time zone updates
+  - Confidence indicators
+  - Interactive elements
+
+### 4. Backend Services
+- Data Integration Service
+  - API Gateway
+  - Data Transformation
+  - Caching Layer
+- ML Service
+  - Model Management
+  - Inference API
+  - Monitoring
+- Analytics Service
+  - Historical Analysis
+  - Trend Detection
+  - Risk Assessment
+
+### 5. Development Environment
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Run tests
+npm test
+```
+
+### 6. Production Deployment
+- AWS Infrastructure
+  - EC2 for API servers
+  - S3 for static assets
+  - RDS for database
+  - SageMaker for ML models
+  - CloudFront for CDN
+  - Route53 for DNS
+
+### 7. ML Model Details
+The traffic light zoning system uses multiple ML models:
+
+#### Geographic Model
+- Analyzes location-based features
+- Processes infrastructure data
+- Evaluates accessibility metrics
+
+#### Market Analysis Model
+- Price trend analysis
+- Supply/demand metrics
+- Market sentiment analysis
+
+#### Risk Assessment Model
+- Volatility analysis
+- Economic stability
+- Demographic trends
+
+#### Transition Prediction Model
+- Zone change probability
+- Growth trajectory
+- Development impact
+
+### 8. Data Flow
+1. Data Collection
+   - Real-time property data
+   - Market indicators
+   - Economic data
+   - Infrastructure updates
+
+2. Processing Pipeline
+   - Data validation
+   - Feature extraction
+   - ML model inference
+   - Confidence calculation
+
+3. Visualization
+   - Zone classification
+   - Interactive map
+   - Analytics dashboard
+   - Trend visualization
+
+### 9. Configuration
+Environment variables required:
+```env
+# API Keys
+DOMAIN_API_KEY=your_key
+REA_API_KEY=your_key
+NSW_DIGITAL_TWIN_KEY=your_key
+
+# ML Model
+ML_MODEL_VERSION=latest
+ML_CONFIDENCE_THRESHOLD=0.75
+
+# Database
+DB_CONNECTION_STRING=your_connection_string
+
+# Services
+API_URL=http://localhost:3000
+ML_SERVICE_URL=http://localhost:3007
+```
+
+### 10. Contributing
+Please read CONTRIBUTING.md for details on our code of conduct and the process for submitting pull requests.
+
+### 11. License
+This project is licensed under the MIT License - see the LICENSE.md file for details. 

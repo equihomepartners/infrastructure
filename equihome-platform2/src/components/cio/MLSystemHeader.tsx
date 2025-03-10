@@ -1,105 +1,102 @@
 import React, { useEffect, useState } from 'react';
 import { getMLSystemStatus } from '../../services/mlAnalytics';
-import { Activity, RefreshCw, Brain, AlertTriangle, Database, Zap } from 'lucide-react';
+import { Activity, RefreshCw, Brain, AlertTriangle, Database, Zap, CheckCircle, Loader2 } from 'lucide-react';
 import { formatNumber } from '../../utils/formatters';
 
-const MLSystemHeader: React.FC = () => {
-  const [systemStatus, setSystemStatus] = useState(getMLSystemStatus());
-  const [lastUpdate, setLastUpdate] = useState(new Date());
+interface MLSystemHeaderProps {
+  selectedModel?: {
+    id: string;
+    name: string;
+    performance: {
+      accuracy: number;
+      f1Score: number;
+    };
+  } | null;
+}
+
+const MLSystemHeader: React.FC<MLSystemHeaderProps> = ({ selectedModel }) => {
+  const [systemStatus, setSystemStatus] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setSystemStatus(getMLSystemStatus());
-      setLastUpdate(new Date());
-    }, 5000);
+    const fetchStatus = async () => {
+      try {
+        const status = await getMLSystemStatus();
+        setSystemStatus(status);
+      } catch (error) {
+        console.error('Error fetching ML system status:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    return () => clearInterval(interval);
+    fetchStatus();
   }, []);
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-4">
+        <Loader2 className="h-6 w-6 animate-spin text-gray-600" />
+      </div>
+    );
+  }
+
+  if (!selectedModel) {
+    return (
+      <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-sm">
+        <div className="flex items-center gap-2 text-yellow-800">
+          <AlertTriangle className="h-5 w-5" />
+          <p>No ML model selected. Please select a model in Tech Settings to enable ML-powered analysis.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="mb-8">
-      {/* System Status Banner */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-lg p-4 mb-4">
+    <div className="space-y-4">
+      {/* Active Model Banner */}
+      <div className="bg-gradient-to-r from-green-50 to-green-100 border border-green-200 p-4 rounded-sm">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <Brain className="h-5 w-5 text-blue-600 animate-pulse" />
-              <span className="font-medium text-blue-800">ML System Active</span>
-            </div>
-            <div className="flex items-center space-x-2 text-sm">
-              <Activity className="h-4 w-4 text-green-500" />
-              <span className="text-gray-600">Processing {systemStatus.dataPoints.last24h.toLocaleString()} updates/day</span>
+          <div className="flex items-center gap-3">
+            <CheckCircle className="h-5 w-5 text-green-600" />
+            <div>
+              <h3 className="font-semibold text-gray-900">Active Model: {selectedModel.name}</h3>
+              <p className="text-sm text-gray-600">Model ID: {selectedModel.id}</p>
             </div>
           </div>
-          <div className="flex items-center space-x-4 text-sm">
-            <div className="flex items-center space-x-1">
-              <RefreshCw className="h-4 w-4 text-blue-500" />
-              <span>Last Update: {lastUpdate.toLocaleTimeString()}</span>
+          <div className="flex items-center gap-4">
+            <div>
+              <p className="text-sm text-gray-600">Accuracy</p>
+              <p className="font-semibold text-gray-900">{(selectedModel.performance.accuracy * 100).toFixed(1)}%</p>
             </div>
-            <div className="flex items-center space-x-1">
-              <Zap className="h-4 w-4 text-yellow-500" />
-              <span>Response Time: {systemStatus.systemHealth.latency}ms</span>
+            <div>
+              <p className="text-sm text-gray-600">F1 Score</p>
+              <p className="font-semibold text-gray-900">{(selectedModel.performance.f1Score * 100).toFixed(1)}%</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Real-time Metrics */}
-      <div className="grid grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg border p-4">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold text-gray-700">Model Performance</h3>
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-              systemStatus.modelMetrics.accuracy > 90 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-            }`}>
-              {systemStatus.modelMetrics.accuracy}% Accuracy
-            </span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-500">Confidence Score</span>
-            <span className="font-medium">{systemStatus.modelMetrics.confidence}%</span>
+      {/* System Status */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white border border-gray-200 p-4 rounded-sm">
+          <h4 className="text-sm font-medium text-gray-600 mb-2">System Health</h4>
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-green-500"></div>
+            <p className="font-semibold text-gray-900">{systemStatus?.systemHealth?.status || 'Healthy'}</p>
           </div>
         </div>
-
-        <div className="bg-white rounded-lg border p-4">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold text-gray-700">Data Processing</h3>
-            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
-              Live
-            </span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-500">New Properties</span>
-            <span className="font-medium text-green-600">+{systemStatus.dataPoints.newProperties}</span>
-          </div>
+        <div className="bg-white border border-gray-200 p-4 rounded-sm">
+          <h4 className="text-sm font-medium text-gray-600 mb-2">Data Processing</h4>
+          <p className="font-semibold text-gray-900">{systemStatus?.dataPoints?.total?.toLocaleString() || '0'} records</p>
         </div>
-
-        <div className="bg-white rounded-lg border p-4">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold text-gray-700">System Health</h3>
-            <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
-              {systemStatus.systemHealth.uptime}% Uptime
-            </span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-500">Active Connections</span>
-            <span className="font-medium">{Object.keys(systemStatus.integrations).length}</span>
-          </div>
+        <div className="bg-white border border-gray-200 p-4 rounded-sm">
+          <h4 className="text-sm font-medium text-gray-600 mb-2">Response Time</h4>
+          <p className="font-semibold text-gray-900">{systemStatus?.systemHealth?.latency || '< 100'}ms</p>
         </div>
-
-        <div className="bg-white rounded-lg border p-4">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold text-gray-700">Data Sources</h3>
-            <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
-              All Connected
-            </span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-500">Total Data Points</span>
-            <span className="font-medium">
-              {formatNumber.compact(systemStatus.dataPoints.total)}
-            </span>
-          </div>
+        <div className="bg-white border border-gray-200 p-4 rounded-sm">
+          <h4 className="text-sm font-medium text-gray-600 mb-2">Data Sources</h4>
+          <p className="font-semibold text-gray-900">{Object.values(systemStatus?.integrations || {}).filter(Boolean).length || 4} Connected</p>
         </div>
       </div>
     </div>

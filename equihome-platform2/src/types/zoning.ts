@@ -132,4 +132,109 @@ export interface AdvancedMLMetrics {
   infrastructureAnalysis: {
     plannedImprovements: Record<string, number>;
   };
+}
+
+export interface ZoneClassification {
+  suburb: string;
+  zone: 'green' | 'amber' | 'red';
+  confidence: number;
+  lastUpdated: Date;
+  factors: {
+    marketStrength: number;
+    growthPotential: number;
+    riskLevel: number;
+    infrastructureScore: number;
+  };
+  predictions: {
+    shortTerm: {
+      zone: 'green' | 'amber' | 'red';
+      confidence: number;
+    };
+    mediumTerm: {
+      zone: 'green' | 'amber' | 'red';
+      confidence: number;
+    };
+    longTerm: {
+      zone: 'green' | 'amber' | 'red';
+      confidence: number;
+    };
+  };
+}
+
+export interface ZoneMetrics {
+  zone: 'green' | 'amber' | 'red';
+  properties: {
+    total: number;
+    newLast24h: number;
+    averageValue: number;
+    medianValue: number;
+  };
+  performance: {
+    averageGrowth: number;
+    medianGrowth: number;
+    rentalYield: number;
+    vacancyRate: number;
+  };
+  risk: {
+    overall: number;
+    market: number;
+    economic: number;
+    environmental: number;
+  };
+  trends: Array<{
+    date: Date;
+    propertyCount: number;
+    averageValue: number;
+    growthRate: number;
+  }>;
+}
+
+export interface MarketAnalysis {
+  suburb: string;
+  timestamp: Date;
+  overview: {
+    medianPrice: number;
+    priceGrowth: number;
+    daysOnMarket: number;
+    totalProperties: number;
+    activeListings: number;
+  };
+  demographics: {
+    population: number;
+    populationGrowth: number;
+    medianAge: number;
+    householdIncome: number;
+    ownerOccupied: number;
+  };
+  marketIndicators: {
+    supplyDemand: number;
+    clearanceRate: number;
+    investorActivity: number;
+    marketCycle: 'growth' | 'peak' | 'decline' | 'bottom';
+  };
+  infrastructure: {
+    current: {
+      transport: number;
+      education: number;
+      healthcare: number;
+      retail: number;
+    };
+    planned: {
+      projects: Array<{
+        type: string;
+        value: number;
+        completion: Date;
+        impact: number;
+      }>;
+    };
+  };
+  riskAssessment: {
+    overall: number;
+    factors: {
+      market: number;
+      economic: number;
+      environmental: number;
+      regulatory: number;
+    };
+  };
 } 

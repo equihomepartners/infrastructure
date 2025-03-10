@@ -1,4 +1,6 @@
 import { trafficLightZones } from '../data/zoneData.js';
+import { SuburbData } from '../types/ml';
+import { getMLSystemStatus as getMLStatus, classifyZone } from '../api/ml';
 
 interface SuburbAnalysis {
   confidence: number;
@@ -44,6 +46,17 @@ interface SuburbAnalysis {
     dataQuality: number;
     predictionAccuracy: number;
   };
+  insights: string[];
+  growthAnalysis: {
+    labels: string[];
+    datasets: Array<{
+      label: string;
+      data: number[];
+      backgroundColor: string;
+      borderColor: string;
+      borderWidth: number;
+    }>;
+  };
 }
 
 interface SydneyAverages {
@@ -73,289 +86,350 @@ interface ZoneAverages {
   };
 }
 
-export const getSuburbAnalysis = (suburb: string): SuburbAnalysis => {
-  // Determine zone
-  const zone = trafficLightZones.green.includes(suburb) ? 'green' :
-               trafficLightZones.orange.includes(suburb) ? 'orange' : 'red';
+interface MLSystemStatus {
+  modelSelected: boolean;
+  modelConnected: boolean;
+  lastUpdate: Date;
+  nextUpdate: Date;
+  dataPoints: {
+    total: number;
+    last24h: number;
+    newProperties: number;
+  };
+  modelMetrics: {
+    accuracy: number;
+    confidence: number;
+    validationScore: number;
+  };
+  systemHealth: {
+    status: 'healthy' | 'degraded' | 'error';
+    latency: number;
+    errorRate: number;
+    uptime: number;
+  };
+  integrations: {
+    propTrack: boolean;
+    coreLogic: boolean;
+    abs: boolean;
+    nswPlanning: boolean;
+  };
+}
 
-  // Base metrics adjusted by zone
-  const baseConfidence = zone === 'green' ? 85 : zone === 'orange' ? 75 : 65;
-  const baseGrowth = zone === 'green' ? 8 : zone === 'orange' ? 5 : 3;
-  const baseRisk = zone === 'green' ? 25 : zone === 'orange' ? 45 : 75;
-  const basePrice = zone === 'green' ? 2500000 : zone === 'orange' ? 1500000 : 800000;
+export interface SuburbBoundaries {
+  type: 'FeatureCollection';
+  features: Array<{
+    type: 'Feature';
+    properties: {
+      name: string;
+      state: string;
+      postcode: string;
+      sa2_code: string;
+      zone: 'green' | 'orange' | 'red';
+      confidence: number;
+    };
+    geometry: {
+      type: 'Polygon' | 'MultiPolygon';
+      coordinates: number[][][];
+    };
+  }>;
+}
 
-  // Add some randomization for realistic variation
-  const randomize = (base: number, variance: number) => 
-    base + (Math.random() * variance * 2 - variance);
+export const getSuburbAnalysis = async (suburb: string): Promise<SuburbAnalysis | null> => {
+  try {
+    // First, check if ML system is available
+    const mlStatus = await getMLSystemStatus();
+    if (!mlStatus.modelConnected) {
+      console.warn('ML system not connected, using fallback data');
+      return generateFallbackAnalysis(suburb);
+    }
 
-  // Add dynamic timestamp and iteration info
-  const currentIteration = Math.floor(Date.now() / (24 * 60 * 60 * 1000)); // Daily iterations
-
-  // Add some daily variation based on the iteration
-  const dailyVariation = Math.sin(currentIteration) * 2;
-
-  return {
-    confidence: randomize(baseConfidence, 5),
-    zone,
-    metrics: {
-      growth: randomize(baseGrowth, 2),
-      risk: randomize(baseRisk, 10),
-      infrastructure: randomize(zone === 'green' ? 85 : zone === 'orange' ? 70 : 55, 10),
-      development: zone === 'green' ? 'High' : zone === 'orange' ? 'Medium' : 'Low',
-      transport: randomize(zone === 'green' ? 90 : zone === 'orange' ? 75 : 60, 10),
-      schools: randomize(zone === 'green' ? 88 : zone === 'orange' ? 78 : 65, 10),
-      marketMetrics: {
-        medianPrice: basePrice + (Math.random() * 500000),
-        priceGrowth: randomize(baseGrowth, 1.5),
-        rentalYield: randomize(zone === 'green' ? 3.5 : zone === 'orange' ? 4.2 : 5, 0.5)
+    // Try to get real ML analysis
+    const response = await fetch(`http://localhost:3008/classify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
-      historicalGrowth: Array(5).fill(0).map(() => randomize(baseGrowth, 1)),
-      forecastGrowth: Array(4).fill(0).map(() => randomize(baseGrowth * 1.1, 1))
+      body: JSON.stringify({
+        id: suburb,
+        name: suburb,
+        postcode: '2000',
+        state: 'NSW'
+      })
+    });
+    
+    if (!response.ok) {
+      console.warn('ML service returned error, using fallback data');
+      return generateFallbackAnalysis(suburb);
+    }
+
+    const data = await response.json();
+    return transformMLResponse(data, suburb);
+
+  } catch (error) {
+    console.error('Error fetching suburb analysis:', error);
+    return generateFallbackAnalysis(suburb);
+  }
+};
+
+const transformMLResponse = (data: any, suburb: string): SuburbAnalysis => {
+  // Transform the raw ML API response into our SuburbAnalysis format
+  return {
+    confidence: data.confidence || 0,
+    zone: determineZone(suburb),
+    metrics: {
+      growth: data.metrics?.growth || 0,
+      risk: data.metrics?.risk || 0,
+      infrastructure: data.metrics?.infrastructure || 0,
+      development: data.metrics?.development || 'No Data',
+      transport: data.metrics?.transport || 0,
+      schools: data.metrics?.schools || 0,
+      marketMetrics: {
+        medianPrice: data.metrics?.marketMetrics?.medianPrice || 0,
+        priceGrowth: data.metrics?.marketMetrics?.priceGrowth || 0,
+        rentalYield: data.metrics?.marketMetrics?.rentalYield || 0,
+      },
+      historicalGrowth: data.metrics?.historicalGrowth || [],
+      forecastGrowth: data.metrics?.forecastGrowth || [],
     },
     predictions: {
       shortTerm: {
-        prediction: zone === 'green' ? 'Strong Growth' : zone === 'orange' ? 'Moderate Growth' : 'Stable',
-        confidence: randomize(75, 5),
-        factors: [
-          'Current market momentum',
-          'Recent comparable sales',
-          'Buyer demand levels',
-          zone === 'green' ? 'Premium location appeal' : 
-          zone === 'orange' ? 'Improving infrastructure' : 
-          'Affordability advantage'
-        ]
+        prediction: data.predictions?.shortTerm?.prediction || 'No prediction',
+        confidence: data.predictions?.shortTerm?.confidence || 0,
+        factors: data.predictions?.shortTerm?.factors || [],
       },
       mediumTerm: {
-        prediction: zone === 'green' ? 'Sustained Growth' : zone === 'orange' ? 'Gradual Appreciation' : 'Potential Upside',
-        confidence: randomize(65, 5),
-        factors: [
-          'Infrastructure development',
-          'Population growth trends',
-          'Employment opportunities',
-          zone === 'green' ? 'Limited supply' :
-          zone === 'orange' ? 'Gentrification potential' :
-          'Development plans'
-        ]
+        prediction: data.predictions?.mediumTerm?.prediction || 'No prediction',
+        confidence: data.predictions?.mediumTerm?.confidence || 0,
+        factors: data.predictions?.mediumTerm?.factors || [],
       },
       longTerm: {
-        prediction: zone === 'green' ? 'Premium Growth' : zone === 'orange' ? 'Steady Growth' : 'Value Growth',
-        confidence: randomize(55, 5),
-        factors: [
-          'Demographic shifts',
-          'Economic indicators',
-          'Urban planning',
-          zone === 'green' ? 'Established prestige' :
-          zone === 'orange' ? 'Area transformation' :
-          'Infrastructure investment'
-        ]
-      }
+        prediction: data.predictions?.longTerm?.prediction || 'No prediction',
+        confidence: data.predictions?.longTerm?.confidence || 0,
+        factors: data.predictions?.longTerm?.factors || [],
+      },
     },
-    lastUpdated: new Date(),
-    iteration: currentIteration,
-    dataPoints: 15234 + Math.floor(Math.random() * 1000),
-    modelVersion: '3.2.1',
+    lastUpdated: new Date(data.lastUpdated || Date.now()),
+    iteration: data.iteration || 0,
+    dataPoints: data.dataPoints || 0,
+    modelVersion: data.modelVersion || '1.0.0',
     updateMetrics: {
-      confidence: baseConfidence + dailyVariation,
-      dataQuality: 96.3,
-      predictionAccuracy: 94.2
+      confidence: data.updateMetrics?.confidence || 0,
+      dataQuality: data.updateMetrics?.dataQuality || 0,
+      predictionAccuracy: data.updateMetrics?.predictionAccuracy || 0,
+    },
+    insights: data.insights || [],
+    growthAnalysis: {
+      labels: ['Growth', 'Risk', 'Infrastructure', 'Transport', 'Schools'],
+      datasets: [{
+        label: 'Metrics',
+        data: [
+          data.metrics?.growth || 0,
+          data.metrics?.risk || 0,
+          data.metrics?.infrastructure || 0,
+          data.metrics?.transport || 0,
+          data.metrics?.schools || 0,
+        ],
+        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+        borderColor: 'rgb(59, 130, 246)',
+        borderWidth: 1
+      }]
     }
   };
 };
 
-// Add the getDetailedMLAnalysis function
-export const getDetailedMLAnalysis = (suburb: string): SuburbAnalysis => {
-  return getSuburbAnalysis(suburb);
-};
-
-// Combined Sydney averages function with historical and forecast data
-export const getSydneyAverages = (): SydneyAverages & {
-  historicalGrowth: number[];
-  currentGrowth: number;
-  forecastGrowth: number[];
-} => {
+const generateFallbackAnalysis = (suburb: string): SuburbAnalysis => {
+  // Generate placeholder data when ML service is unavailable
+  const zone = determineZone(suburb);
+  const baseConfidence = zone === 'green' ? 0.8 : zone === 'orange' ? 0.6 : 0.4;
+  
   return {
-    growth: 4.2,
-    risk: 45,
-    infrastructure: 72,
-    transport: 68,
-    schools: 75,
-    medianPrice: 1250000,
-    priceGrowth: 3.8,
-    rentalYield: 3.2,
+    confidence: baseConfidence,
+    zone,
+    metrics: {
+      growth: Math.random() * 100,
+      risk: Math.random() * 100,
+      infrastructure: Math.random() * 100,
+      development: 'Placeholder',
+      transport: Math.random() * 100,
+      schools: Math.random() * 100,
+      marketMetrics: {
+        medianPrice: 1000000 + Math.random() * 1000000,
+        priceGrowth: Math.random() * 10,
+        rentalYield: 3 + Math.random() * 2,
+      },
+      historicalGrowth: Array(12).fill(0).map(() => Math.random() * 10),
+      forecastGrowth: Array(12).fill(0).map(() => Math.random() * 10),
+    },
+    predictions: {
+      shortTerm: {
+        prediction: 'Placeholder prediction',
+        confidence: baseConfidence,
+        factors: ['Factor 1', 'Factor 2', 'Factor 3'],
+      },
+      mediumTerm: {
+        prediction: 'Placeholder prediction',
+        confidence: baseConfidence * 0.9,
+        factors: ['Factor 1', 'Factor 2', 'Factor 3'],
+      },
+      longTerm: {
+        prediction: 'Placeholder prediction',
+        confidence: baseConfidence * 0.8,
+        factors: ['Factor 1', 'Factor 2', 'Factor 3'],
+      },
+    },
     lastUpdated: new Date(),
-    dataPoints: 1243567,
-    modelConfidence: 94.3,
-    // Additional historical and forecast data
-    historicalGrowth: [5.8, 5.5, 5.2, 4.8, 4.2],
-    currentGrowth: 4.2,
-    forecastGrowth: [4.3, 4.5, 4.7, 4.9]
-  };
-};
-
-// Add ML system update tracking
-export const getMLSystemStatus = () => {
-  return {
-    lastUpdate: new Date(),
-    nextUpdate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Next day
-    dataPoints: {
-      total: 1243567,
-      last24h: 15234,
-      newProperties: 342
+    iteration: 0,
+    dataPoints: 1000,
+    modelVersion: '1.0.0-fallback',
+    updateMetrics: {
+      confidence: baseConfidence,
+      dataQuality: baseConfidence,
+      predictionAccuracy: baseConfidence,
     },
-    modelMetrics: {
-      accuracy: 94.3,
-      confidence: 92.7,
-      validationScore: 0.89
-    },
-    systemHealth: {
-      status: 'operational',
-      uptime: 99.98,
-      latency: 145 // ms
-    },
-    integrations: {
-      propTrack: 'connected',
-      coreLogic: 'connected',
-      domainGroup: 'connected'
-    }
-  };
-};
-
-// Update the underwriting integration status
-export const getUnderwritingIntegration = () => {
-  return {
-    status: 'active',
-    totalAssessments: 67, // Keep pipeline number
-    last24h: 1, // Reduced from 3 to 1-2 approvals per day
-    averageProcessingTime: 2.3, // minutes
-    automationRate: 78, // percentage
-    riskAssessments: {
-      approved: 12, // Reduced from 42 (about 1-2 per week)
-      flaggedForReview: 42, // Increased proportion of flagged
-      rejected: 13 // Slightly increased proportion of rejected
-    },
-    confidenceMetrics: {
-      overall: 94.3,
-      pricing: 96.2,
-      risk: 92.8,
-      ltv: 95.4,
-      serviceability: 93.7,
-      security: 97.1
-    },
-    zoneImpact: {
-      green: {
-        approvalRate: 92,
-        avgProcessingTime: 1.8,
-        automationRate: 85
-      },
-      orange: {
-        approvalRate: 76,
-        avgProcessingTime: 2.4,
-        automationRate: 70
-      },
-      red: {
-        approvalRate: 45,
-        avgProcessingTime: 3.2,
-        automationRate: 55
-      }
-    },
-    recentDeals: [
-      {
-        suburb: 'Mosman',
-        propertyValue: 2850000,
-        loanAmount: 1850000,
-        ltv: 65,
-        status: 'approved',
-        processingTime: 1.7,
-        zoneImpact: 'high',
-        timestamp: new Date() // Today
-      },
-      {
-        suburb: 'Marrickville',
-        propertyValue: 1650000,
-        loanAmount: 1150000,
-        ltv: 70,
-        status: 'flagged',
-        processingTime: 2.4,
-        zoneImpact: 'medium',
-        timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000) // Yesterday
-      }
+    insights: [
+      'This is placeholder data as the ML service is currently unavailable',
+      'The zone classification is based on pre-defined mappings',
+      'All metrics are randomly generated'
     ],
-    recentUpdates: [
-      {
-        timestamp: new Date(),
-        type: 'model_update',
-        description: 'Enhanced risk assessment algorithm',
-        impact: 'Improved accuracy for high-value properties'
-      },
-      {
-        timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000),
-        type: 'data_refresh',
-        description: 'Updated market comparables',
-        impact: 'Refined valuation models in premium suburbs'
-      }
-    ],
-    keyMetrics: {
-      avgLoanSize: 1450000,
-      avgLtv: 67.5,
-      avgPropertyValue: 2150000,
-      zoneDistribution: {
-        green: 65,
-        orange: 28,
-        red: 7
-      }
-    },
-    riskFactors: {
-      highestImpact: [
-        'Location quality',
-        'Market liquidity',
-        'Price stability'
-      ],
-      moderateImpact: [
-        'Infrastructure development',
-        'Employment stability',
-        'Local market trends'
-      ]
-    },
-    monthlyTrends: {
-      approvals: [1, 2, 1, 2, 1, 2], // Last 6 months
-      pipeline: [65, 58, 72, 63, 67, 67] // Assessment volumes
+    growthAnalysis: {
+      labels: ['Growth', 'Risk', 'Infrastructure', 'Transport', 'Schools'],
+      datasets: [{
+        label: 'Metrics',
+        data: Array(5).fill(0).map(() => Math.random() * 100),
+        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+        borderColor: 'rgb(59, 130, 246)',
+        borderWidth: 1
+      }]
     }
   };
 };
 
-// Helper functions with more realistic patterns...
+const determineZone = (suburb: string): 'green' | 'orange' | 'red' => {
+  if (trafficLightZones.green.includes(suburb)) return 'green';
+  if (trafficLightZones.orange.includes(suburb)) return 'orange';
+  return 'red';
+};
 
-export const getZoneAverages = (): ZoneAverages => {
-  return {
-    green: {
-      currentGrowth: 7.5,
-      risk: 25,
-      infrastructure: 85,
-      transport: 88,
-      schools: 90,
-      medianPrice: 2250000,
-      historicalGrowth: [8.2, 7.8, 7.6, 7.4, 7.5],
-      forecastGrowth: [7.6, 7.8, 7.9, 8.1]
-    },
-    orange: {
-      currentGrowth: 5.2,
-      risk: 45,
-      infrastructure: 70,
-      transport: 75,
-      schools: 78,
-      medianPrice: 1450000,
-      historicalGrowth: [5.8, 5.5, 5.3, 5.2, 5.2],
-      forecastGrowth: [5.3, 5.4, 5.6, 5.8]
-    },
-    red: {
-      currentGrowth: 3.5,
-      risk: 65,
-      infrastructure: 55,
-      transport: 60,
-      schools: 65,
-      medianPrice: 850000,
-      historicalGrowth: [3.8, 3.7, 3.6, 3.5, 3.5],
-      forecastGrowth: [3.6, 3.7, 3.8, 3.9]
+export const getMLSystemStatus = async (): Promise<MLSystemStatus> => {
+  try {
+    const response = await fetch(`${process.env.VITE_ML_API_URL || 'http://localhost:3007'}/api/ml/status`);
+    if (!response.ok) {
+      throw new Error('ML system status API error');
     }
-  };
+    const data = await response.json();
+    return {
+      ...data,
+      lastUpdate: new Date(data.lastUpdate),
+      nextUpdate: new Date(data.nextUpdate)
+    };
+  } catch (error) {
+    console.error('Error fetching ML system status:', error);
+    // Return offline status
+    return {
+      modelSelected: false,
+      modelConnected: false,
+      lastUpdate: new Date(),
+      nextUpdate: new Date(Date.now() + 5 * 60000), // 5 minutes
+      dataPoints: {
+        total: 0,
+        last24h: 0,
+        newProperties: 0
+      },
+      modelMetrics: {
+        accuracy: 0,
+        confidence: 0,
+        validationScore: 0
+      },
+      systemHealth: {
+        status: 'error',
+        latency: 0,
+        errorRate: 0,
+        uptime: 0
+      },
+      integrations: {
+        propTrack: false,
+        coreLogic: false,
+        abs: false,
+        nswPlanning: false
+      }
+    };
+  }
+};
+
+export const getDetailedMLAnalysis = async (suburb: string) => {
+  try {
+    const response = await fetch(`http://localhost:3001/api/ml/detailed/${encodeURIComponent(suburb)}`);
+    if (!response.ok) {
+      throw new Error('Detailed ML analysis API error');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching detailed ML analysis:', error);
+    return null;
+  }
+};
+
+export const getSydneyAverages = async () => {
+  try {
+    const response = await fetch('http://localhost:3001/api/ml/sydney-averages');
+    if (!response.ok) {
+      throw new Error('Sydney averages API error');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching Sydney averages:', error);
+    return {
+      growth: 0,
+      risk: 0,
+      infrastructure: 0,
+      transport: 0,
+      schools: 0,
+      medianPrice: 0
+    };
+  }
+};
+
+export const getUnderwritingIntegration = async (suburb: string) => {
+  try {
+    const response = await fetch(`http://localhost:3001/api/ml/underwriting/${encodeURIComponent(suburb)}`);
+    if (!response.ok) {
+      throw new Error('Underwriting integration API error');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching underwriting integration:', error);
+    return null;
+  }
+};
+
+export const getZoneAverages = async () => {
+  try {
+    const response = await fetch('http://localhost:3001/api/ml/zone-averages');
+    if (!response.ok) {
+      throw new Error('Zone averages API error');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching zone averages:', error);
+    return {
+      green: { currentGrowth: 0, risk: 0, infrastructure: 0, transport: 0, schools: 0 },
+      orange: { currentGrowth: 0, risk: 0, infrastructure: 0, transport: 0, schools: 0 },
+      red: { currentGrowth: 0, risk: 0, infrastructure: 0, transport: 0, schools: 0 }
+    };
+  }
+};
+
+export const getSuburbBoundaries = async (): Promise<SuburbBoundaries> => {
+  try {
+    const response = await fetch(`${process.env.VITE_ML_API_URL || 'http://localhost:3007'}/api/ml/suburbs/boundaries`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch suburb boundaries');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching suburb boundaries:', error);
+    throw error;
+  }
 };

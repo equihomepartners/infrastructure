@@ -79,4 +79,32 @@ export interface SuburbAnalysis {
     growthRate: number;
     medianPrice: number;
   }>;
+}
+
+export interface MLSystemStatus {
+  lastUpdate: Date;
+  nextUpdate: Date;
+  dataPoints: {
+    total: number;
+    last24h: number;
+    newProperties: number;
+  };
+  modelMetrics: {
+    accuracy: number;
+    confidence: number;
+    validationScore: number;
+  };
+  systemHealth: {
+    status: 'healthy' | 'degraded' | 'down';
+    uptime: number;
+    latency: number;
+    errorRate: number;
+  };
+  integrations: {
+    proptrack: boolean;
+    corelogic: boolean;
+    abs: boolean;
+    nswPlanning: boolean;
+  };
+  modelSelected: boolean;
 } 

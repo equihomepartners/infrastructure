@@ -9,8 +9,7 @@ import Map, {
   LayerProps,
   MapLayerMouseEvent
 } from 'react-map-gl';
-import { sydneySuburbsData } from '../../data/sydneySuburbsData';
-import { getSuburbAnalysis } from '../../services/mlAnalytics';
+import { getSuburbAnalysis, getSuburbBoundaries } from '../../services/mlAnalytics';
 import MLAnalytics from './MLAnalytics';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
@@ -21,6 +20,7 @@ interface Props {
 interface SuburbProperties {
   name: string;
   zone: 'green' | 'orange' | 'red';
+  confidence: number;
 }
 
 interface SuburbFeature {
@@ -33,7 +33,24 @@ const MapboxZoningMap: React.FC<Props> = ({ onSuburbSelect }) => {
   const [hoveredSuburb, setHoveredSuburb] = useState<string | null>(null);
   const [selectedSuburb, setSelectedSuburb] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<any>(null);
+  const [suburbsData, setSuburbsData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const mapRef = useRef<MapRef>(null);
+
+  useEffect(() => {
+    const fetchSuburbs = async () => {
+      try {
+        const data = await getSuburbBoundaries();
+        setSuburbsData(data);
+      } catch (error) {
+        console.error('Error fetching suburb boundaries:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSuburbs();
+  }, []);
 
   const layerStyle: LayerProps = {
     id: 'sydney-suburbs',
@@ -70,9 +87,10 @@ const MapboxZoningMap: React.FC<Props> = ({ onSuburbSelect }) => {
     if (feature?.properties) {
       const suburb = feature.properties.name;
       setSelectedSuburb(suburb);
-      const suburbAnalysis = getSuburbAnalysis(suburb);
-      setAnalysis(suburbAnalysis);
-      onSuburbSelect(suburb);
+      getSuburbAnalysis(suburb).then(analysis => {
+        setAnalysis(analysis);
+        onSuburbSelect(suburb);
+      });
 
       // Zoom to clicked suburb
       if (mapRef.current) {
@@ -98,6 +116,17 @@ const MapboxZoningMap: React.FC<Props> = ({ onSuburbSelect }) => {
     }
   }, []);
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-[600px] bg-gray-50 rounded-lg">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading suburbs data...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="relative h-[600px] rounded-lg overflow-hidden">
@@ -115,9 +144,11 @@ const MapboxZoningMap: React.FC<Props> = ({ onSuburbSelect }) => {
           onClick={handleClick}
           interactiveLayerIds={['sydney-suburbs']}
         >
-          <Source type="geojson" data={sydneySuburbsData}>
-            <Layer {...layerStyle} />
-          </Source>
+          {suburbsData && (
+            <Source type="geojson" data={suburbsData}>
+              <Layer {...layerStyle} />
+            </Source>
+          )}
           <NavigationControl position="top-right" />
           <FullscreenControl position="top-right" />
         </Map>

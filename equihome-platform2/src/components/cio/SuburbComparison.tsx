@@ -1,246 +1,120 @@
 import React from 'react';
-import { Line, Bar } from 'react-chartjs-2';
-import { getSuburbAnalysis, getSydneyAverages, getZoneAverages } from '../../services/mlAnalytics';
-import { Clock, TrendingUp, RefreshCcw } from 'lucide-react';
+import { Bar } from 'react-chartjs-2';
 import { formatNumber } from '../../utils/formatters';
 
-interface Props {
-  suburbs: string[];
+interface SuburbComparisonProps {
+  suburb: string | null;
+  analysis: any | null;
+  isLoading?: boolean;
 }
 
-const SuburbComparison: React.FC<Props> = ({ suburbs }) => {
-  const analyses = suburbs.map(suburb => ({
-    suburb,
-    analysis: getSuburbAnalysis(suburb)
-  }));
-  
-  const sydneyAverages = getSydneyAverages();
-  const zoneAverages = getZoneAverages();
-
-  // Historical and Forecast Data (12 months back, current, 12 months forward)
-  const timeLabels = [
-    '-12m', '-9m', '-6m', '-3m', 'Current', '+3m', '+6m', '+9m', '+12m'
-  ];
-
-  const growthComparisonData = {
-    labels: timeLabels,
-    datasets: [
-      // Selected Suburb
-      {
-        label: suburbs[0],
-        data: analyses[0].analysis.metrics.historicalGrowth.concat(
-          [analyses[0].analysis.metrics.growth],
-          analyses[0].analysis.metrics.forecastGrowth
-        ),
-        borderColor: '#3b82f6',
-        borderWidth: 2,
-        tension: 0.4,
-        fill: false
-      },
-      // Zone Averages
-      {
-        label: 'Green Zone Avg',
-        data: zoneAverages.green.historicalGrowth.concat(
-          [zoneAverages.green.currentGrowth],
-          zoneAverages.green.forecastGrowth
-        ),
-        borderColor: '#22c55e',
-        borderWidth: 2,
-        borderDash: [5, 5],
-        tension: 0.4,
-        fill: false
-      },
-      {
-        label: 'Orange Zone Avg',
-        data: zoneAverages.orange.historicalGrowth.concat(
-          [zoneAverages.orange.currentGrowth],
-          zoneAverages.orange.forecastGrowth
-        ),
-        borderColor: '#f97316',
-        borderWidth: 2,
-        borderDash: [5, 5],
-        tension: 0.4,
-        fill: false
-      },
-      {
-        label: 'Red Zone Avg',
-        data: zoneAverages.red.historicalGrowth.concat(
-          [zoneAverages.red.currentGrowth],
-          zoneAverages.red.forecastGrowth
-        ),
-        borderColor: '#ef4444',
-        borderWidth: 2,
-        borderDash: [5, 5],
-        tension: 0.4,
-        fill: false
-      },
-      // Sydney Average
-      {
-        label: 'Sydney Average',
-        data: sydneyAverages.historicalGrowth.concat(
-          [sydneyAverages.currentGrowth],
-          sydneyAverages.forecastGrowth
-        ),
-        borderColor: '#94a3b8',
-        borderWidth: 2,
-        borderDash: [2, 2],
-        tension: 0.4,
-        fill: false
-      }
-    ]
+const SuburbComparison: React.FC<SuburbComparisonProps> = ({ suburb, analysis, isLoading = false }) => {
+  const defaultData = {
+    labels: ['Price Growth', 'Rental Yield', 'Infrastructure', 'Schools', 'Transport'],
+    datasets: [{
+      label: 'Current Suburb',
+      data: [0, 0, 0, 0, 0],
+      backgroundColor: 'rgba(148, 163, 184, 0.2)',
+      borderColor: 'rgb(148, 163, 184)',
+      borderWidth: 1
+    }]
   };
 
-  // Metrics Comparison Data
-  const compareData = {
-    labels: ['Growth', 'Risk', 'Infrastructure', 'Transport', 'Schools'],
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      y: {
+        beginAtZero: true,
+        max: 100
+      }
+    },
+    plugins: {
+      legend: {
+        display: true,
+        position: 'top' as const
+      }
+    }
+  };
+
+  const metrics = analysis?.metrics || {};
+  
+  const chartData = {
+    labels: ['Price Growth', 'Rental Yield', 'Infrastructure', 'Schools', 'Transport'],
     datasets: [
-      // Sydney average
+      {
+        label: suburb || 'Selected Suburb',
+        data: [
+          metrics.priceGrowth || 0,
+          metrics.rentalYield || 0,
+          metrics.infrastructure || 0,
+          metrics.schools || 0,
+          metrics.transport || 0
+        ],
+        backgroundColor: analysis ? 'rgba(59, 130, 246, 0.5)' : 'rgba(148, 163, 184, 0.2)',
+        borderColor: analysis ? 'rgb(59, 130, 246)' : 'rgb(148, 163, 184)',
+        borderWidth: 1
+      },
       {
         label: 'Sydney Average',
-        data: [
-          sydneyAverages.growth,
-          sydneyAverages.risk,
-          sydneyAverages.infrastructure,
-          sydneyAverages.transport,
-          sydneyAverages.schools
-        ],
-        borderColor: '#94a3b8',
-        borderDash: [5, 5],
-        borderWidth: 2,
-        tension: 0.4,
-        fill: false
-      },
-      // Zone averages
-      {
-        label: 'Zone Average',
-        data: [
-          zoneAverages[analyses[0].analysis.zone].currentGrowth,
-          zoneAverages[analyses[0].analysis.zone].risk,
-          zoneAverages[analyses[0].analysis.zone].infrastructure,
-          zoneAverages[analyses[0].analysis.zone].transport,
-          zoneAverages[analyses[0].analysis.zone].schools
-        ],
-        borderColor: analyses[0].analysis.zone === 'green' ? '#22c55e' :
-                    analyses[0].analysis.zone === 'orange' ? '#f97316' : '#ef4444',
-        borderDash: [5, 5],
-        borderWidth: 2,
-        tension: 0.4,
-        fill: false
-      },
-      // Selected suburb
-      {
-        label: suburbs[0],
-        data: [
-          analyses[0].analysis.metrics.growth,
-          analyses[0].analysis.metrics.risk,
-          analyses[0].analysis.metrics.infrastructure,
-          analyses[0].analysis.metrics.transport,
-          analyses[0].analysis.metrics.schools
-        ],
-        borderColor: '#3b82f6',
-        borderWidth: 2,
-        tension: 0.4,
-        fill: false
+        data: [65, 48, 72, 58, 62], // Example averages
+        backgroundColor: 'rgba(234, 179, 8, 0.5)',
+        borderColor: 'rgb(234, 179, 8)',
+        borderWidth: 1
       }
     ]
   };
 
   return (
-    <div className="space-y-6">
-      {/* Growth Comparison Chart */}
-      <div className="bg-white rounded-lg p-6 border">
-        <h3 className="text-lg font-semibold mb-4">Growth Trajectory Comparison</h3>
-        <div className="h-80">
-          <Line 
-            data={growthComparisonData}
-            options={{
-              responsive: true,
-              plugins: {
-                legend: {
-                  position: 'top'
-                },
-                tooltip: {
-                  callbacks: {
-                    label: (context) => `${context.dataset.label}: ${formatNumber.percentage(context.parsed.y)}`
-                  }
-                }
-              },
-              scales: {
-                y: {
-                  beginAtZero: true,
-                  title: {
-                    display: true,
-                    text: 'Growth Rate (%)'
-                  }
-                }
-              }
-            }}
-          />
+    <div className="bg-white border border-gray-200 p-6">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">Suburb Comparison</h3>
+      
+      {!suburb && (
+        <div className="text-sm text-gray-500 mb-4">
+          Select a suburb to view comparison metrics
         </div>
-      </div>
+      )}
 
-      {/* Metrics Comparison */}
-      <div className="bg-white rounded-lg p-6 border">
-        <h3 className="text-lg font-semibold mb-4">Metrics Comparison</h3>
-        <div className="h-80">
-          <Line 
-            data={compareData}
-            options={{
-              responsive: true,
-              plugins: {
-                legend: {
-                  position: 'top'
-                },
-                tooltip: {
-                  callbacks: {
-                    label: (context) => `${context.dataset.label}: ${formatNumber.percentage(context.parsed.y)}`
-                  }
-                }
-              },
-              scales: {
-                y: {
-                  beginAtZero: true,
-                  max: 100
-                }
-              }
-            }}
-          />
+      <div className="space-y-6">
+        {/* Comparison Chart */}
+        <div className="h-64">
+          <Bar data={analysis ? chartData : defaultData} options={chartOptions} />
         </div>
-      </div>
 
-      {/* Detailed Metrics Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b">
-              <th className="text-left py-2">Metric</th>
-              <th className="text-left py-2">Sydney Average</th>
-              <th className="text-left py-2">Zone Average</th>
-              <th className="text-left py-2">{suburbs[0]}</th>
-              <th className="text-left py-2">Variance</th>
-            </tr>
-          </thead>
-          <tbody>
-            {/* Price Metrics */}
-            <tr className="border-b">
-              <td className="py-2">Median Price</td>
-              <td className="py-2">{formatNumber.currency(sydneyAverages.medianPrice)}</td>
-              <td className="py-2">{formatNumber.currency(zoneAverages[analyses[0].analysis.zone].medianPrice)}</td>
-              <td className="py-2">{formatNumber.currency(analyses[0].analysis.metrics.marketMetrics.medianPrice)}</td>
-              <td className="py-2">
-                <span className={`${
-                  analyses[0].analysis.metrics.marketMetrics.medianPrice > sydneyAverages.medianPrice
-                  ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {formatNumber.percentage(
-                    (analyses[0].analysis.metrics.marketMetrics.medianPrice / sydneyAverages.medianPrice - 1) * 100
-                  )}
-                </span>
-              </td>
-            </tr>
-            {/* Add more metrics rows... */}
-          </tbody>
-        </table>
+        {/* Key Metrics */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="p-4 bg-gray-50 rounded-lg">
+            <div className="text-sm text-gray-600 mb-1">Overall Score</div>
+            <div className="text-2xl font-semibold text-gray-900">
+              {analysis ? formatNumber.percentage(metrics.overall || 0) : '--'}
+            </div>
+          </div>
+          <div className="p-4 bg-gray-50 rounded-lg">
+            <div className="text-sm text-gray-600 mb-1">Market Position</div>
+            <div className="text-2xl font-semibold text-gray-900">
+              {analysis ? `#${formatNumber.score(metrics.marketPosition || 0)}` : '--'}
+            </div>
+          </div>
+        </div>
+
+        {/* Detailed Metrics */}
+        <div className="grid grid-cols-3 gap-4">
+          {[
+            { label: 'Price Growth', key: 'priceGrowth', format: formatNumber.percentage },
+            { label: 'Rental Yield', key: 'rentalYield', format: formatNumber.percentage },
+            { label: 'Infrastructure', key: 'infrastructure', format: formatNumber.score },
+            { label: 'Schools', key: 'schools', format: formatNumber.score },
+            { label: 'Transport', key: 'transport', format: formatNumber.score },
+            { label: 'Market Strength', key: 'marketStrength', format: formatNumber.score }
+          ].map(({ label, key, format }) => (
+            <div key={key} className="p-4 bg-gray-50 rounded-lg">
+              <div className="text-sm text-gray-600 mb-1">{label}</div>
+              <div className="text-xl font-semibold text-gray-900">
+                {analysis ? format(metrics[key] || 0) : '--'}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

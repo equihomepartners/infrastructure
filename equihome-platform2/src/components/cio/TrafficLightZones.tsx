@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import MLEnhancedMap from './MLEnhancedMap';
 import MLAnalytics from './MLAnalytics';
 import MLDecisionViz from './MLDecisionViz';
@@ -7,131 +7,114 @@ import MLSystemHeader from './MLSystemHeader';
 import UnderwritingIntegration from './UnderwritingIntegration';
 import RiskCorrelationMatrix from './RiskCorrelationMatrix';
 import MarketCyclePosition from './MarketCyclePosition';
-import { getSuburbAnalysis } from '../../services/mlAnalytics';
-import { Brain, TrendingUp, Shield, ArrowLeftRight, Map } from 'lucide-react';
+import { getSuburbAnalysis, getMLSystemStatus } from '../../services/mlAnalytics';
+import { Brain, TrendingUp, Shield, ArrowLeftRight, Map, AlertTriangle, Settings, Loader2, XCircle } from 'lucide-react';
 import MLModelEvolution from './MLModelEvolution';
 
-const TrafficLightZones: React.FC = () => {
+interface TrafficLightZonesProps {
+  onTabChange?: (tab: string) => void;
+}
+
+const TrafficLightZones: React.FC<TrafficLightZonesProps> = ({ onTabChange }) => {
   const [selectedSuburb, setSelectedSuburb] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [mlStatus, setMLStatus] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const checkMLStatus = async () => {
+      try {
+        const status = await getMLSystemStatus();
+        setMLStatus(status);
+        setError(null);
+      } catch (error) {
+        console.error('Error checking ML status:', error);
+        setError('Unable to connect to ML service');
+      }
+    };
+
+    checkMLStatus();
+    // Poll ML status every 30 seconds
+    const interval = setInterval(checkMLStatus, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleSuburbSelect = async (suburb: string) => {
     setIsLoading(true);
-    setTimeout(() => {
-      setSelectedSuburb(suburb);
-      const suburbAnalysis = getSuburbAnalysis(suburb);
-      setAnalysis(suburbAnalysis);
+    setSelectedSuburb(suburb);
+    setError(null);
+    
+    try {
+      const analysis = await getSuburbAnalysis(suburb);
+      setAnalysis(analysis);
+    } catch (error) {
+      console.error('Error fetching suburb analysis:', error);
+      setError('Failed to fetch suburb analysis');
+      // Keep the selected suburb but set analysis to null to show empty state
+      setAnalysis(null);
+    } finally {
       setIsLoading(false);
-    }, 500); // Simulate loading
+    }
   };
 
   return (
     <div className="space-y-6">
-      {/* ML System Status Header - Always visible */}
+      {/* ML System Status */}
       <MLSystemHeader />
 
-      {/* ML Model Evolution - Shows the progression of our ML system */}
-      <MLModelEvolution />
+      {/* Error States */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 p-4 rounded-lg">
+          <div className="flex items-center gap-2 text-red-800">
+            <XCircle className="h-5 w-5" />
+            <p>{error}</p>
+          </div>
+        </div>
+      )}
 
-      {/* Map and Analysis Section */}
-      <div className="grid grid-cols-3 gap-6">
-        {/* Map Section - 2/3 width */}
-        <div className="col-span-2 bg-white rounded-lg shadow-sm p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-2">
-              <Map className="h-5 w-5 text-indigo-600" />
-              <h2 className="text-xl font-bold">ML-Powered Zoning Analysis</h2>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Brain className="h-5 w-5 text-blue-600" />
-              <span className="text-sm text-blue-600 font-medium">
-                ML System Active
-              </span>
+      {/* ML Status Warning */}
+      {!mlStatus?.modelConnected && (
+        <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+          <div className="flex items-center gap-2 text-yellow-800">
+            <AlertTriangle className="h-5 w-5" />
+            <div>
+              <p className="font-medium">ML System Disconnected</p>
+              <p className="text-sm mt-1">Analysis features will show placeholder data until the ML system is connected.</p>
             </div>
           </div>
-          <MLEnhancedMap onSuburbSelect={handleSuburbSelect} />
         </div>
+      )}
 
-        {/* Risk Matrix - 1/3 width */}
-        <div className="bg-white rounded-lg shadow-sm">
-          <RiskCorrelationMatrix />
+      {/* Map Component - Always visible */}
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <div className="p-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">Sydney Traffic Light Zones</h2>
+          <p className="text-sm text-gray-500 mt-1">Select a suburb to view detailed ML analysis</p>
         </div>
+        <MLEnhancedMap 
+          onSuburbSelect={handleSuburbSelect}
+          predictiveMode={mlStatus?.modelConnected}
+        />
+      </div>
+      
+      {/* Analysis Components - Always visible with loading/empty states */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <MLAnalytics analysis={analysis} isLoading={isLoading} />
+        <MLDecisionViz analysis={analysis} isLoading={isLoading} />
+        <SuburbComparison suburb={selectedSuburb} analysis={analysis} isLoading={isLoading} />
+        <RiskCorrelationMatrix analysis={analysis} isLoading={isLoading} />
+        <UnderwritingIntegration analysis={analysis} isLoading={isLoading} />
+        <MLModelEvolution analysis={analysis} isLoading={isLoading} />
       </div>
 
-      {/* Selected Suburb Analysis Section */}
-      {selectedSuburb && analysis && (
-        <div className="space-y-6">
-          {/* Main Analysis Grid */}
-          <div className="grid grid-cols-3 gap-6">
-            {/* Left Column - Market Analysis */}
-            <div className="space-y-6">
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <div className="flex items-center mb-4">
-                  <TrendingUp className="h-5 w-5 text-indigo-600 mr-2" />
-                  <h2 className="text-xl font-bold">{selectedSuburb} Analysis</h2>
-                </div>
-                <MLAnalytics analysis={analysis} />
-              </div>
-            </div>
-
-            {/* Middle Column - Market Cycle */}
-            <div className="space-y-6">
-              <MarketCyclePosition suburb={selectedSuburb} analysis={analysis} />
-            </div>
-
-            {/* Right Column - ML Decision */}
-            <div className="space-y-6">
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <div className="flex items-center mb-4">
-                  <Brain className="h-5 w-5 text-indigo-600 mr-2" />
-                  <h2 className="text-xl font-bold">ML Decision Factors</h2>
-                </div>
-                <MLDecisionViz analysis={analysis} />
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom Section */}
-          <div className="grid grid-cols-2 gap-6">
-            {/* Suburb Comparison */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <div className="flex items-center mb-4">
-                <ArrowLeftRight className="h-5 w-5 text-indigo-600 mr-2" />
-                <h2 className="text-xl font-bold">Comparable Suburbs</h2>
-              </div>
-              <SuburbComparison suburbs={[selectedSuburb]} />
-            </div>
-
-            {/* Underwriting Impact */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <div className="flex items-center mb-4">
-                <Shield className="h-5 w-5 text-indigo-600 mr-2" />
-                <h2 className="text-xl font-bold">Underwriting Impact</h2>
-              </div>
-              <UnderwritingIntegration />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Loading State */}
+      {/* Loading Overlay - Only shows when actively loading */}
       {isLoading && (
-        <div className="absolute inset-0 bg-white/50 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        </div>
-      )}
-
-      {/* No Suburb Selected State */}
-      {!selectedSuburb && !isLoading && (
-        <div className="bg-blue-50 rounded-lg p-8 text-center">
-          <Brain className="h-12 w-12 text-blue-600 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-blue-900 mb-2">
-            Select a Suburb to View Analysis
-          </h3>
-          <p className="text-blue-700">
-            Click on any suburb on the map to view detailed ML analysis and market insights
-          </p>
+        <div className="fixed inset-0 bg-black/10 flex items-center justify-center z-50">
+          <div className="bg-white p-4 rounded-lg shadow-lg flex items-center gap-3">
+            <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+            <span>Loading analysis...</span>
+          </div>
         </div>
       )}
     </div>

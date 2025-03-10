@@ -109,7 +109,7 @@ const Navbar: React.FC = () => {
                   }`
                 }
               >
-                Data Feeds
+                Technical Settings
               </NavLink>
             </div>
           </div>
