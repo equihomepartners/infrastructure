@@ -1,40 +1,48 @@
-require('dotenv').config();
 const express = require('express');
-const mongoose = require('mongoose');
-const Redis = require('redis');
-const { setupDataIngestion } = require('./services/dataIngestion');
-const { setupStorageService } = require('./services/storage');
-const { setupETLPipeline } = require('./pipelines/etl');
-const { setupValidation } = require('./validation/dataValidation');
+const cors = require('cors');
+const { generateMockData } = require('./services/mockData');
 
 const app = express();
-const PORT = process.env.PORT || 3005;
+const PORT = process.env.PORT || 3007;
 
-// Initialize services
-async function initializeServices() {
-  // MongoDB connection
-  await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/equihome-data');
-  
-  // Redis connection
-  const redisClient = Redis.createClient({
-    url: process.env.REDIS_URI || 'redis://localhost:6379'
-  });
-  await redisClient.connect();
+app.use(cors());
+app.use(express.json());
 
-  // Initialize data services
-  await setupDataIngestion();
-  await setupStorageService();
-  await setupETLPipeline();
-  await setupValidation();
-}
+// In-memory cache
+const cache = new Map();
 
-// Start server
-app.listen(PORT, async () => {
-  try {
-    await initializeServices();
-    console.log(`Data infrastructure server running on port ${PORT}`);
-  } catch (error) {
-    console.error('Failed to initialize services:', error);
-    process.exit(1);
+// Cache middleware
+const cacheMiddleware = (key) => (req, res, next) => {
+  if (cache.has(key)) {
+    return res.json(cache.get(key));
   }
+  next();
+};
+
+// Routes
+app.get('/api/data/market', cacheMiddleware('market'), (req, res) => {
+  const marketData = generateMockData('market');
+  cache.set('market', marketData);
+  res.json(marketData);
+});
+
+app.get('/api/data/property', cacheMiddleware('property'), (req, res) => {
+  const propertyData = generateMockData('property');
+  cache.set('property', propertyData);
+  res.json(propertyData);
+});
+
+app.get('/api/data/infrastructure', cacheMiddleware('infrastructure'), (req, res) => {
+  const infrastructureData = generateMockData('infrastructure');
+  cache.set('infrastructure', infrastructureData);
+  res.json(infrastructureData);
+});
+
+// Clear cache every hour
+setInterval(() => {
+  cache.clear();
+}, 3600000);
+
+app.listen(PORT, () => {
+  console.log(`Data Infrastructure Service running on port ${PORT}`);
 }); 

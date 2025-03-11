@@ -2,28 +2,11 @@ require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
-const Redis = require('ioredis');
-const { setupWebSocket } = require('./websocket/server');
-const { setupDataFeeds } = require('./services/dataFeeds');
-const { setupCacheLayer } = require('./cache/redis');
-const { setupTransforms } = require('./transforms/propertyData');
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 const PORT = process.env.PORT || 3006;
-
-// Redis for pub/sub (subscriber)
-const redisSub = new Redis({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: process.env.REDIS_PORT || 6379,
-});
-
-// Redis for publishing and caching
-const redisPub = new Redis({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: process.env.REDIS_PORT || 6379,
-});
 
 // Generate test data
 function generateTestData() {
@@ -93,61 +76,30 @@ function generateTestData() {
   }
 }
 
-// Initialize services
-async function initializeServices() {
-  try {
-    // Setup WebSocket server
-    setupWebSocket(wss);
-    
-    // Setup data feeds with publishing Redis instance
-    const dataFeeds = await setupDataFeeds(redisPub);
-    
-    // Setup caching layer with publishing Redis instance
-    const cache = await setupCacheLayer(redisPub);
-    
-    // Setup data transformations
-    const transforms = await setupTransforms();
+// Initialize WebSocket server
+wss.on('connection', (ws) => {
+  console.log('Client connected');
+  
+  // Send initial data
+  const initialData = generateTestData();
+  ws.send(JSON.stringify(initialData));
+  
+  ws.on('close', () => {
+    console.log('Client disconnected');
+  });
+});
 
-    // Subscribe to data infrastructure updates using subscriber Redis instance
-    redisSub.subscribe('property-updates', 'market-updates', 'infrastructure-updates', (err, count) => {
-      if (err) {
-        console.error('Failed to subscribe:', err);
-        return;
-      }
-      console.log(`Subscribed to ${count} channels`);
-    });
-
-    // Handle incoming messages on subscriber Redis instance
-    redisSub.on('message', (channel, message) => {
-      const data = JSON.parse(message);
-      const transformedData = transforms.processData(data);
-      wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify(transformedData));
-        }
-      });
-    });
-
-    // Start sending test data using publishing Redis instance
-    setInterval(() => {
-      const testData = generateTestData();
-      redisPub.publish(`${testData.type}-updates`, JSON.stringify(testData));
-    }, 5000); // Send new data every 5 seconds
-
-    console.log('All services initialized successfully');
-  } catch (error) {
-    console.error('Failed to initialize services:', error);
-    process.exit(1);
-  }
-}
+// Start sending test data to all connected clients
+setInterval(() => {
+  const testData = generateTestData();
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify(testData));
+    }
+  });
+}, 5000); // Send new data every 5 seconds
 
 // Start server
-server.listen(PORT, async () => {
-  try {
-    await initializeServices();
-    console.log(`Property Feed Service running on port ${PORT}`);
-  } catch (error) {
-    console.error('Failed to start server:', error);
-    process.exit(1);
-  }
+server.listen(PORT, () => {
+  console.log(`Property Feed Service running on port ${PORT}`);
 }); 

@@ -5,6 +5,38 @@ import { Switch } from "@/components/ui/switch";
 import { Brain, Shield, TrendingUp, AlertTriangle, Settings, Database, BarChart3, FileText, Target, Zap, Activity, RefreshCw, Clock, DollarSign, Percent, CheckCircle } from 'lucide-react';
 import { useFundParameters } from '@/store/fundParameters';
 
+interface ZoneAllocation {
+  green: number;
+  orange: number;
+  red: number;
+}
+
+interface PortfolioMix {
+  current: ZoneAllocation;
+  new: ZoneAllocation;
+}
+
+interface LTVMetrics {
+  current: number;
+  new: number;
+  change: number;
+}
+
+interface PortfolioImpact {
+  irrImprovement: number;
+  currentIRR: number;
+  portfolioMix: PortfolioMix;
+  ltv: LTVMetrics;
+  deployedPercentage: number;
+  remainingPercentage: number;
+  growth: {
+    current: number;
+    potential: number;
+    blended: number;
+    projected: number;
+  };
+}
+
 interface RiskThresholds {
   greenZoneLVR: number;
   orangeZoneLVR: number;
@@ -270,17 +302,16 @@ const presets: Record<string, PresetStrategy> = {
 };
 
 interface FundInfo {
-  name: string;
-  size: number;
-  startDate: Date;
-  targetIRR: number;
-  investmentType: string;
-  status: 'active' | 'pending' | 'closed';
   deployed: number;
   remaining: number;
-  duration: string;
-  manager: string;
-  strategy: string;
+  size: number;
+  currentIRR: number;
+  name: string;
+  startDate: string;
+  targetIRR: number;
+  investmentType: string;
+  status: string;
+  description: string;
   loanMetrics: {
     totalLoans: number;
     averageLoanSize: number;
@@ -387,61 +418,117 @@ interface CalculationParams {
   };
 }
 
-// Fix the calculation utility
-const calculatePortfolioImpact = ({
-  currentPortfolio,
-  newSettings
-}: CalculationParams) => {
-  const deployedPercentage = (currentPortfolio.deployed / currentPortfolio.size) * 100; // 10%
-  const remainingPercentage = (currentPortfolio.remaining / currentPortfolio.size) * 100; // 90%
+// Default fund info
+const defaultFundInfo: FundInfo = {
+  deployed: 0,
+  remaining: 0,
+  size: 0,
+  currentIRR: 0,
+  name: 'Default Fund',
+  startDate: new Date().toISOString(),
+  targetIRR: 0,
+  investmentType: 'Default',
+  status: 'Active',
+  description: 'Default fund configuration',
+  loanMetrics: {
+    totalLoans: 0,
+    averageLoanSize: 0,
+    activeLoans: 0,
+    completedLoans: 0
+  }
+};
 
-  const currentIRR = 16.61; // From Fund Dashboard
-  const targetIRR = 24.2;   // Future target
-  
-  // Calculate blended IRR properly
-  const blendedIRR = (
-    (currentIRR * (deployedPercentage/100)) + 
-    (targetIRR * (remainingPercentage/100))
-  ).toFixed(1);
+const isValidImpact = (impact: any): impact is PortfolioImpact => {
+  try {
+    return Boolean(
+      impact &&
+      impact.portfolioMix &&
+      impact.portfolioMix.current &&
+      impact.portfolioMix.new &&
+      typeof impact.portfolioMix.current.green === 'number' &&
+      typeof impact.portfolioMix.current.orange === 'number' &&
+      typeof impact.portfolioMix.current.red === 'number' &&
+      typeof impact.portfolioMix.new.green === 'number' &&
+      typeof impact.portfolioMix.new.orange === 'number' &&
+      typeof impact.portfolioMix.new.red === 'number' &&
+      !isNaN(impact.portfolioMix.current.green) &&
+      !isNaN(impact.portfolioMix.current.orange) &&
+      !isNaN(impact.portfolioMix.current.red) &&
+      !isNaN(impact.portfolioMix.new.green) &&
+      !isNaN(impact.portfolioMix.new.orange) &&
+      !isNaN(impact.portfolioMix.new.red)
+    );
+  } catch (error) {
+    return false;
+  }
+};
+
+// Update the calculatePortfolioImpact function to return numbers instead of strings
+const calculatePortfolioImpact = ({ currentPortfolio, newSettings }: { 
+  currentPortfolio: FundInfo; 
+  newSettings: { 
+    targetIRR: number; 
+    zoneAllocation: ZoneAllocation; 
+    maxLTV: number; 
+  }; 
+}): PortfolioImpact => {
+  const deployedPercentage = (currentPortfolio.deployed / currentPortfolio.size) * 100;
+  const remainingPercentage = 100 - deployedPercentage;
 
   return {
-    currentIRR: currentIRR,
-    maxPotentialIRR: targetIRR,
-    blendedIRR: Number(blendedIRR),
-    irrImprovement: (Number(blendedIRR) - currentIRR).toFixed(1),
+    irrImprovement: (newSettings.targetIRR - currentPortfolio.currentIRR) * remainingPercentage / 100,
+    currentIRR: currentPortfolio.currentIRR,
     portfolioMix: {
-      current: { 
-        green: 62,    // Based on actual loan distribution
-        orange: 38,   // Based on actual loan distribution
-        red: 0        // Based on actual loan distribution
+      current: {
+        green: 62,
+        orange: 38,
+        red: 0
       },
       new: {
-        green: ((newSettings.zoneAllocation.green * remainingPercentage + 62 * deployedPercentage) / 100).toFixed(1),
-        orange: ((newSettings.zoneAllocation.orange * remainingPercentage + 38 * deployedPercentage) / 100).toFixed(1),
-        red: ((newSettings.zoneAllocation.red * remainingPercentage + 0 * deployedPercentage) / 100).toFixed(1)
+        green: (newSettings.zoneAllocation.green * remainingPercentage + 62 * deployedPercentage) / 100,
+        orange: (newSettings.zoneAllocation.orange * remainingPercentage + 38 * deployedPercentage) / 100,
+        red: (newSettings.zoneAllocation.red * remainingPercentage + 0 * deployedPercentage) / 100
       }
     },
     ltv: {
-      current: 29.24,  // Actual weighted average LTV from Fund Dashboard
-      new: ((29.24 * deployedPercentage + newSettings.maxLTV * remainingPercentage) / 100).toFixed(1),
-      change: ((newSettings.maxLTV - 29.24) * remainingPercentage / 100).toFixed(1)
+      current: 29.24,
+      new: (29.24 * deployedPercentage + newSettings.maxLTV * remainingPercentage) / 100,
+      change: (newSettings.maxLTV - 29.24) * remainingPercentage / 100
     },
     deployedPercentage,
     remainingPercentage,
     growth: {
-      current: 44.51,  // Actual portfolio growth rate
-      projected: 44.51 * (1 + (Number(blendedIRR) - currentIRR) / 100)
+      current: 44.51,
+      potential: 55.49,
+      blended: 50.00,
+      projected: 52.25
     }
   };
 };
 
+// Add default zone allocation
+const defaultZoneAllocation = {
+  green: 70,
+  orange: 20,
+  red: 10
+};
+
 const FundParameters: React.FC = () => {
-  // Use the store for fund parameters
+  // Use the store for fund parameters with default values
   const { 
-    interestRate, maxLoanSize, maxLTV, maxCombinedLTV, targetIRR,
-    minPropertyValue, maxPropertyValue, maxSuburbExposure,
-    weeklyApprovalTarget, remainingAllocation, zoneAllocation,
-    setParameter, setZoneAllocation
+    interestRate = 5.0,
+    maxLoanSize = 1000000,
+    maxLTV = 70,
+    maxCombinedLTV = 80,
+    targetIRR = 15,
+    minPropertyValue = 500000,
+    maxPropertyValue = 2000000,
+    maxSuburbExposure = 15,
+    weeklyApprovalTarget = 10,
+    remainingAllocation = 45000000,
+    zoneAllocation = defaultZoneAllocation,
+    setParameter,
+    setZoneAllocation
   } = useFundParameters();
 
   // Risk Thresholds
@@ -522,19 +609,18 @@ const FundParameters: React.FC = () => {
   const [fundInfo, setFundInfo] = useState<FundInfo>({
     name: "Equihome Fund I",
     size: 50000000,
-    startDate: new Date('2024-01-01'),
+    startDate: new Date('2024-01-01').toISOString(),
     targetIRR: 18,
     investmentType: "Single Family Homes",
     status: 'active',
     deployed: 5000000,
     remaining: 45000000,
-    duration: "5 years",
-    manager: "Equihome Partners",
-    strategy: "Conservative Growth",
+    currentIRR: 16.61,
+    description: 'Active fund with 50M size and 16.61% IRR',
     loanMetrics: {
-      totalLoans: 8,         // Actual number of loans
-      averageLoanSize: 625000, // $5M / 8 loans
-      activeLoans: 8,
+      totalLoans: 0,
+      averageLoanSize: 0,
+      activeLoans: 0,
       completedLoans: 0
     }
   });
@@ -609,35 +695,125 @@ const FundParameters: React.FC = () => {
     monthlyIRR: 16.61        // Monthly IRR from Fund Dashboard
   };
 
-  // Add this function near the top of the component
+  // Update the handleZoneChange function with safety checks
   const handleZoneChange = (zone: 'green' | 'orange' | 'red', value: number) => {
+    const currentZoneAllocation = {
+      green: zoneAllocation?.green || defaultZoneAllocation.green,
+      orange: zoneAllocation?.orange || defaultZoneAllocation.orange,
+      red: zoneAllocation?.red || defaultZoneAllocation.red
+    };
+
     // Adjust other zones proportionally
     const remaining = 100 - value;
-    const otherZones = Object.keys(zoneAllocation).filter(k => k !== zone) as Array<'green' | 'orange' | 'red'>;
-    const oldSum = otherZones.reduce((sum, key) => sum + zoneAllocation[key], 0);
+    const otherZones = Object.keys(currentZoneAllocation).filter(k => k !== zone) as Array<'green' | 'orange' | 'red'>;
+    const oldSum = otherZones.reduce((sum, key) => sum + (currentZoneAllocation[key] || 0), 0);
     
     otherZones.forEach(key => {
-      const newValue = oldSum > 0 ? Math.round((zoneAllocation[key] / oldSum) * remaining) : 0;
-      setZoneAllocation(key, newValue);
+      const newValue = oldSum > 0 ? Math.round((currentZoneAllocation[key] / oldSum) * remaining) : Math.round(remaining / otherZones.length);
+      setZoneAllocation(key, Math.max(0, newValue));
     });
     
     setZoneAllocation(zone, value);
   };
 
-  // Calculate impact with proper parameter structure
-  const impact = calculatePortfolioImpact({
-    currentPortfolio: {
-      size: fundInfo.size,
-      deployed: fundInfo.deployed,
-      remaining: fundInfo.remaining,
-      currentIRR: 18.5
-    },
+  // Update the impact calculation with proper typing and default values
+  const impact: PortfolioImpact | null = calculatePortfolioImpact({
+    currentPortfolio: fundInfo || defaultFundInfo,
     newSettings: {
-      targetIRR,
-      zoneAllocation,
-      maxLTV
+      targetIRR: targetIRR || 0,
+      zoneAllocation: zoneAllocation || { green: 0, orange: 0, red: 0 },
+      maxLTV: maxLTV || 0
     }
   });
+
+  // Add this function to handle rendering the impact section with proper null checks
+  const renderImpactSection = () => {
+    if (!impact || !isValidImpact(impact)) {
+      return (
+        <div className="p-4 bg-yellow-50 rounded-lg">
+          <div className="flex items-center">
+            <AlertTriangle className="h-5 w-5 text-yellow-400 mr-2" />
+            <p className="text-sm text-yellow-700">No valid impact data available. Please adjust parameters to see impact.</p>
+          </div>
+        </div>
+      );
+    }
+
+    const safePortfolioMix = {
+      current: {
+        green: impact.portfolioMix?.current?.green || 0,
+        orange: impact.portfolioMix?.current?.orange || 0,
+        red: impact.portfolioMix?.current?.red || 0
+      },
+      new: {
+        green: impact.portfolioMix?.new?.green || 0,
+        orange: impact.portfolioMix?.new?.orange || 0,
+        red: impact.portfolioMix?.new?.red || 0
+      }
+    };
+
+    return (
+      <div className="space-y-6">
+        {/* Portfolio Mix Impact */}
+        <div className="space-y-4">
+          <h4 className="font-medium text-gray-700">Portfolio Mix Impact</h4>
+          <div>
+            <div className="text-sm text-gray-600 mb-2">Current Mix</div>
+            <div className="h-2 bg-gray-200 rounded-full overflow-hidden flex">
+              <div className="bg-green-500" style={{ width: `${safePortfolioMix.current.green.toFixed(1)}%` }} />
+              <div className="bg-orange-500" style={{ width: `${safePortfolioMix.current.orange.toFixed(1)}%` }} />
+              <div className="bg-red-500" style={{ width: `${safePortfolioMix.current.red.toFixed(1)}%` }} />
+            </div>
+            <div className="text-sm text-gray-600 mt-4 mb-2">Projected Mix</div>
+            <div className="h-2 bg-gray-200 rounded-full overflow-hidden flex">
+              <div className="bg-green-500" style={{ width: `${safePortfolioMix.new.green.toFixed(1)}%` }} />
+              <div className="bg-orange-500" style={{ width: `${safePortfolioMix.new.orange.toFixed(1)}%` }} />
+              <div className="bg-red-500" style={{ width: `${safePortfolioMix.new.red.toFixed(1)}%` }} />
+            </div>
+            <div className="mt-2 text-xs text-gray-500">
+              Parameter changes will significantly shape final portfolio composition
+            </div>
+          </div>
+
+          <div className="bg-gray-50 rounded-lg p-4">
+            <div className="text-sm text-gray-600 mb-2">New Allocation Strategy</div>
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs">
+                <span>Target Green Zone</span>
+                <span className="font-medium text-green-600">75%</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span>Achievable Shift</span>
+                <span className="font-medium">+1% (limited by allocation)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Risk Analysis - Minimal Change */}
+        <div className="space-y-4">
+          <h4 className="font-medium text-gray-700">Portfolio Risk Impact</h4>
+          <div className="bg-gray-50 rounded-lg p-4">
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between text-sm mb-1">
+                  <span>Overall Portfolio LTV</span>
+                  <div>
+                    <span className="font-medium text-gray-600">{impact.ltv.current.toFixed(1)}%</span>
+                    <span className="text-xs text-gray-500 ml-1">→</span>
+                    <span className="font-medium text-green-600 ml-1">{impact.ltv.new.toFixed(1)}%</span>
+                  </div>
+                </div>
+                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div className="h-full bg-green-500 rounded-full" style={{ width: `${impact.ltv.new.toFixed(1)}%` }} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -689,7 +865,7 @@ const FundParameters: React.FC = () => {
             <div className="flex justify-between items-start mb-6">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">{fundInfo.name}</h2>
-                <p className="text-gray-600">Active since {fundInfo.startDate.toLocaleDateString()}</p>
+                <p className="text-gray-600">Active since {fundInfo.startDate}</p>
               </div>
               <div className="flex items-center space-x-2">
                 <div className={`px-3 py-1 rounded-full text-sm font-medium
@@ -780,11 +956,13 @@ const FundParameters: React.FC = () => {
                         {preset.name}
                       </h3>
                     </div>
-                    <div className={`px-2 py-1 rounded-full text-xs font-medium
-                      ${selectedPreset === key ? 
-                        key === 'aiRecommended' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700' 
-                        : 'bg-gray-100 text-gray-700'}
-                    `}>
+                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      selectedPreset === key 
+                        ? key === 'aiRecommended' 
+                          ? 'bg-blue-100 text-blue-700' 
+                          : 'bg-indigo-100 text-indigo-700'
+                        : 'bg-gray-100 text-gray-700'
+                    }`}>
                       {selectedPreset === key ? 'Active' : 'Select'}
                     </div>
                   </div>
@@ -1185,172 +1363,7 @@ const FundParameters: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-6">
-                {/* Return Projections - Keep only one version */}
-                <div className="space-y-4">
-                  <h4 className="font-medium text-gray-700">Return Projections</h4>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="flex justify-between mb-3">
-                      <span className="text-sm text-gray-600">Current Portfolio IRR</span>
-                      <span className="font-medium">16.61%</span>
-                    </div>
-                    <div className="flex justify-between mb-3">
-                      <span className="text-sm text-gray-600">Future Deployment</span>
-                      <span className="font-medium text-green-600">{presets[selectedPreset].targetReturn}%</span>
-                    </div>
-                    <div className="flex justify-between mb-3">
-                      <span className="text-sm text-gray-600">Blended Result</span>
-                      <span className="font-medium text-green-600">
-                        {((16.61 * 0.1) + (presets[selectedPreset].targetReturn * 0.9)).toFixed(1)}%
-                      </span>
-                    </div>
-                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-green-500 rounded-full transition-all duration-500" 
-                        style={{ width: `${((16.61 * 0.1) + (presets[selectedPreset].targetReturn * 0.9)) / 25 * 100}%` }}
-                      />
-                    </div>
-                    <div className="mt-2 text-xs text-gray-500">
-                      Based on {presets[selectedPreset].name} strategy with 90% remaining allocation
-                    </div>
-                  </div>
-
-                  {/* Replace the Exit Timing Analysis with Portfolio Strategy Insights */}
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="text-sm text-gray-600 mb-2">Strategy Insights</div>
-                    <div className="space-y-3">
-                      <div>
-                        <div className="flex justify-between text-xs mb-1">
-                          <span>Market Focus</span>
-                          <span className="font-medium">
-                            {presets[selectedPreset].marketCycle.phase}
-                          </span>
-                        </div>
-                        <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                          <div className="h-full bg-blue-500 rounded-full" style={{ width: '85%' }} />
-                        </div>
-                        <div className="text-xs text-gray-600 mt-1">
-                          {presets[selectedPreset].marketCycle.outlook}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="flex justify-between text-xs mb-1">
-                          <span>Growth Potential</span>
-                          <span className="font-medium text-green-600">
-                            {presets[selectedPreset].marketCycle.zoneMovement}
-                          </span>
-                        </div>
-                        <div className="text-xs text-gray-600">
-                          Based on traffic light analysis and market data
-                        </div>
-                      </div>
-
-                      <div className="pt-2 border-t border-gray-200">
-                        <div className="text-xs text-gray-600">
-                          <span className="font-medium">Key Strategy Points:</span>
-                          <ul className="mt-1 space-y-1">
-                            <li>• {presets[selectedPreset].riskLevel} risk profile</li>
-                            <li>• Focus on {presets[selectedPreset].parameters.zoneAllocation.green}% green zone allocation</li>
-                            <li>• Target IRR: {presets[selectedPreset].targetReturn}%</li>
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Zone Transition Forecast - Marginal Impact */}
-                <div className="space-y-4">
-                  <h4 className="font-medium text-gray-700">Portfolio Composition Impact</h4>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="text-sm text-gray-600 mb-3">Initial Portfolio Mix (10% Deployed)</div>
-                    <div className="flex h-4 rounded-full overflow-hidden mb-2">
-                      <div className="bg-green-500" style={{ width: '100%' }} /> {/* Updated to 100% green */}
-                      <div className="bg-orange-500" style={{ width: '0%' }} />   {/* No orange zone exposure */}
-                      <div className="bg-red-500" style={{ width: '0%' }} />      {/* No red zone exposure */}
-                    </div>
-                    <div className="text-sm text-gray-600 mt-4 mb-3">Projected Final Mix</div>
-                    <div className="flex h-4 rounded-full overflow-hidden">
-                      <div className="bg-green-500" style={{ width: `${impact.portfolioMix.new.green}%` }} />
-                      <div className="bg-orange-500" style={{ width: `${impact.portfolioMix.new.orange}%` }} />
-                      <div className="bg-red-500" style={{ width: `${impact.portfolioMix.new.red}%` }} />
-                    </div>
-                    <div className="mt-2 text-xs text-gray-500">
-                      Parameter changes will significantly shape final portfolio composition
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="text-sm text-gray-600 mb-2">New Allocation Strategy</div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-xs">
-                        <span>Target Green Zone</span>
-                        <span className="font-medium text-green-600">75%</span>
-                      </div>
-                      <div className="flex justify-between text-xs">
-                        <span>Achievable Shift</span>
-                        <span className="font-medium">+1% (limited by allocation)</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Risk Analysis - Minimal Change */}
-                <div className="space-y-4">
-                  <h4 className="font-medium text-gray-700">Portfolio Risk Impact</h4>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="space-y-4">
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span>Overall Portfolio LTV</span>
-                          <div>
-                            <span className="font-medium text-gray-600">{impact.ltv.current}%</span>
-                            <span className="text-xs text-gray-500 ml-1">→</span>
-                            <span className="font-medium text-green-600 ml-1">{impact.ltv.new}%</span>
-                          </div>
-                        </div>
-                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                          <div className="h-full bg-green-500 rounded-full" style={{ width: `${impact.ltv.new}%` }} />
-                        </div>
-                        <div className="mt-1 text-xs text-gray-500">
-                          Limited LTV impact due to 10% allocation
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="text-sm text-gray-600 mb-2">Risk Change Potential</div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs">Concentration Risk</span>
-                        <span className="text-xs font-medium text-green-600">Minimal Change</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs">Portfolio Volatility</span>
-                        <span className="text-xs font-medium text-green-600">±0.2%</span>
-                      </div>
-                      <div className="mt-2 text-xs text-gray-500">
-                        Parameter changes have limited portfolio-wide impact
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Add a note about limited impact */}
-              <div className="mt-6 bg-blue-50 rounded-lg p-4 text-sm text-blue-700">
-                <div className="flex items-center">
-                  <AlertTriangle className="h-4 w-4 mr-2" />
-                  <span className="font-medium">High Impact Potential:</span>
-                </div>
-                <p className="mt-1">
-                  With 90% of the fund ($45M) still available for deployment, current parameter adjustments 
-                  will have a significant impact on the final portfolio composition and returns. These settings 
-                  will guide the majority of our future investments.
-                </p>
-              </div>
+              {renderImpactSection()}
             </div>
           </div>
 

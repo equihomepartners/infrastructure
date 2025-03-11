@@ -44,6 +44,7 @@ const Navbar: React.FC = () => {
                   }`
                 }
               >
+                <Brain className="h-4 w-4 mr-2" />
                 CIO Dashboard
               </NavLink>
               
@@ -100,7 +101,7 @@ const Navbar: React.FC = () => {
               </NavLink>
 
               <NavLink
-                to="/data-feeds"
+                to="/technical-settings"
                 className={({ isActive }) =>
                   `inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
                     isActive
@@ -109,6 +110,7 @@ const Navbar: React.FC = () => {
                   }`
                 }
               >
+                <Settings className="h-4 w-4 mr-2" />
                 Technical Settings
               </NavLink>
             </div>

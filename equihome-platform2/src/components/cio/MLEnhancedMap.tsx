@@ -9,8 +9,12 @@ import { trafficLightZones } from '../../data/zoneData';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 interface Props {
-  onSuburbSelect: (suburb: string) => void;
+  onSuburbSelect?: (suburb: string) => void;
+  predictiveMode?: boolean;
 }
+
+// Get Mapbox token from import.meta.env (Vite's way of accessing env variables)
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
 // Mock data for initial display
 const mockZones = {
@@ -80,7 +84,7 @@ const mockZones = {
   ]
 };
 
-const MLEnhancedMap: React.FC<Props> = ({ onSuburbSelect }) => {
+const MLEnhancedMap: React.FC<Props> = ({ onSuburbSelect, predictiveMode = true }) => {
   const [popupInfo, setPopupInfo] = useState<any>(null);
 
   const fillLayerStyle = {
@@ -119,7 +123,7 @@ const MLEnhancedMap: React.FC<Props> = ({ onSuburbSelect }) => {
           latitude: event.lngLat.lat,
           zone: feature.properties.zone
         });
-        onSuburbSelect(name);
+        onSuburbSelect?.(name);
       }
     }
   }, [onSuburbSelect]);
@@ -127,7 +131,7 @@ const MLEnhancedMap: React.FC<Props> = ({ onSuburbSelect }) => {
   return (
     <div className="relative w-full h-[600px] rounded-lg overflow-hidden">
       <Map
-        mapboxAccessToken={process.env.VITE_MAPBOX_TOKEN}
+        mapboxAccessToken={MAPBOX_TOKEN}
         initialViewState={{
           latitude: -33.8688,
           longitude: 151.2093,

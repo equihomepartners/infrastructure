@@ -1,5 +1,103 @@
 # Equihome Infrastructure
 
+This repository contains the infrastructure code for the Equihome platform, including the frontend application, ML service, and property feed service.
+
+## Project Structure
+
+```
+infrastructure/
+├── equihome-platform2/         # Main frontend application
+│   ├── ml_service/            # Machine Learning service
+│   ├── property-feed-service/ # Property Feed service
+│   └── data-infrastructure/   # Data infrastructure components
+```
+
+## Prerequisites
+
+- Node.js (v18+)
+- Python 3.8+
+- Redis
+- Git
+
+## Setup Instructions
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/equihomepartners/infrastructure.git
+   cd infrastructure
+   ```
+
+2. Install and start Redis:
+   ```bash
+   brew install redis
+   brew services start redis
+   ```
+
+3. Set up the frontend application:
+   ```bash
+   cd equihome-platform2
+   npm install
+   ```
+
+4. Set up the ML service:
+   ```bash
+   cd ml_service
+   pip install -r requirements.txt
+   ```
+
+5. Set up the property feed service:
+   ```bash
+   cd property-feed-service
+   npm install
+   ```
+
+## Running the Services
+
+1. Start the frontend application (port 3001):
+   ```bash
+   cd equihome-platform2
+   npm run dev
+   ```
+
+2. Start the ML service (port 3008):
+   ```bash
+   cd ml_service
+   python3 main.py
+   ```
+
+3. Start the property feed service (port 3006):
+   ```bash
+   cd property-feed-service
+   npm run dev
+   ```
+
+## Service URLs
+
+- Frontend: http://localhost:3001
+- ML Service: http://localhost:3008
+- Property Feed Service: http://localhost:3006
+
+## Troubleshooting
+
+1. Port conflicts:
+   - Check for processes using required ports: `lsof -i :3001,3002,3006,3008`
+   - Kill conflicting processes if needed
+
+2. Redis connection issues:
+   - Ensure Redis is running: `brew services list | grep redis`
+   - Restart Redis if needed: `brew services restart redis`
+
+3. ML Service issues:
+   - The service will train a new model when data becomes available
+   - Check logs for training status and errors
+
+## Development Notes
+
+- The frontend uses Vite for development
+- Hot Module Replacement (HMR) is enabled for frontend development
+- ML service automatically handles model training
+- Property feed service uses nodemon for auto-reloading
+
 ## Project Overview
 Real-time property analytics and portfolio management platform with ML-driven insights.
 
